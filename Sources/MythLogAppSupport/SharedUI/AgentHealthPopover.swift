@@ -12,8 +12,8 @@ struct AgentHealthPopover: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             HStack(spacing: AppSpacing.sm) {
-                // The level's own glyph rather than a generic waveform, so the popover states the
-                // health in a shape as well as a color.
+                // The level's own glyph rather than one fixed icon, so the popover states the health
+                // in a shape as well as a color.
                 IconTile(
                     symbolName: presentation.level.symbolName,
                     tintColor: presentation.level.tintColor,

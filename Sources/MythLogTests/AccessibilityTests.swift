@@ -221,7 +221,7 @@ extension MythLogTests {
                 "canvas nodes and inspector rows must not collide"
             )
 
-            let filters = ["unlock", "custom.backup"].map { A11yIdentifier.toolbarCategoryFilter(id: $0) }
+            let filters = ["unlock", "custom.example"].map { A11yIdentifier.toolbarCategoryFilter(id: $0) }
             try expect(Set(filters).count == filters.count, "each filter button needs its own identifier")
         }
 

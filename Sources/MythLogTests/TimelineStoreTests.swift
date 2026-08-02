@@ -108,11 +108,11 @@ extension MythLogTests {
             }
             let preferences = TimelinePreferences(defaults: defaults)
             let filter = TimelineFilterDefinition(
-                id: "custom.backup",
-                title: "Backup",
+                id: "custom.example",
+                title: "Example",
                 symbolName: "externaldrive.fill",
                 color: .custom,
-                match: TimelineFilterMatch(source: "custom", nameContains: "backup"),
+                match: TimelineFilterMatch(source: "custom", nameContains: "example"),
                 defaultState: .spotlight,
                 isEnabled: true
             )

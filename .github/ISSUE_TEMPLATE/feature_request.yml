@@ -8,7 +8,7 @@ body:
     attributes:
       label: Problem
       description: What user need or security workflow should this solve?
-      placeholder: I want to prioritize a custom audio detector event without changing the built-in filters.
+      placeholder: I want to prioritize my own custom events without changing the built-in filters.
     validations:
       required: true
   - type: textarea

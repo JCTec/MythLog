@@ -166,22 +166,22 @@ extension MythLogTests {
         await runner.run("timeline presentation prefers spotlight filter") {
             let record = timelineRecord(
                 index: 0,
-                event: AlarmEvent(source: "custom", name: "backup.checkpoint.written")
+                event: AlarmEvent(source: "custom", name: "example.event.recorded")
             )
             let normal = TimelineFilterDefinition(
-                id: "custom.backup-normal",
-                title: "Backup Normal",
+                id: "custom.example-normal",
+                title: "Example Normal",
                 symbolName: "externaldrive.fill",
                 color: .custom,
-                match: TimelineFilterMatch(source: "custom", nameContains: "backup"),
+                match: TimelineFilterMatch(source: "custom", nameContains: "example"),
                 defaultState: .normal
             )
             let spotlight = TimelineFilterDefinition(
-                id: "custom.backup-priority",
-                title: "Backup Priority",
+                id: "custom.example-priority",
+                title: "Example Priority",
                 symbolName: "network",
                 color: .notification,
-                match: TimelineFilterMatch(source: "custom", nameContains: "backup"),
+                match: TimelineFilterMatch(source: "custom", nameContains: "example"),
                 defaultState: .spotlight
             )
             let presentation = TimelineDerivedState.presentation(
@@ -190,17 +190,17 @@ extension MythLogTests {
                 filterStates: [normal.id: .normal, spotlight.id: .spotlight]
             )
 
-            try expect(presentation.title == "Backup Priority", "spotlight filter should drive presentation")
+            try expect(presentation.title == "Example Priority", "spotlight filter should drive presentation")
             try expect(presentation.symbolName == "network", "spotlight icon should drive presentation")
         }
 
         await runner.run("timeline display state handles empty and hidden filter sets") {
             let hiddenFilter = TimelineFilterDefinition(
-                id: "custom.backup-hidden",
-                title: "Backup Hidden",
+                id: "custom.example-hidden",
+                title: "Example Hidden",
                 symbolName: "externaldrive.fill",
                 color: .custom,
-                match: TimelineFilterMatch(source: "custom", nameContains: "backup"),
+                match: TimelineFilterMatch(source: "custom", nameContains: "example"),
                 defaultState: .normal
             )
 
@@ -244,7 +244,7 @@ extension MythLogTests {
 
         await runner.run("timeline filter draft requires title and criteria") {
             var blank = TimelineFilterDraft()
-            blank.title = "Audio"
+            blank.title = "Example"
             blank.source = ""
 
             try expect(!blank.match.hasCriteria, "blank draft match should report no criteria")
@@ -260,24 +260,24 @@ extension MythLogTests {
 
         await runner.run("timeline filter draft factory trims values and falls back color") {
             var draft = TimelineFilterDraft()
-            draft.title = "  Backup Watcher  "
+            draft.title = "  Example Filter  "
             draft.symbolName = "externaldrive.fill"
             draft.colorID = "missing-color"
             draft.source = " custom "
-            draft.nameContains = " backup "
+            draft.nameContains = " example "
             draft.metadataKey = " device "
             draft.metadataValue = " external-drive "
 
             let filter = TimelineFilterDraftFactory().makeFilter(from: draft)
 
             try expect(filter.id.hasPrefix("custom."), "custom filter ids should use custom prefix")
-            try expect(filter.title == "Backup Watcher", "factory should trim filter titles")
+            try expect(filter.title == "Example Filter", "factory should trim filter titles")
             try expect(filter.color == .custom, "unknown draft colors should fall back to custom")
             try expect(filter.defaultState == .spotlight, "new filters should default to priority")
             try expect(!filter.isBuiltIn, "created filters should be user filters")
             try expect(filter.isEnabled, "created filters should start enabled")
             try expect(filter.match.source == "custom", "factory should trim source")
-            try expect(filter.match.nameContains == "backup", "factory should trim name contains")
+            try expect(filter.match.nameContains == "example", "factory should trim name contains")
             try expect(filter.match.metadataKey == "device", "factory should trim metadata key")
             try expect(filter.match.metadataValue == "external-drive", "factory should trim metadata value")
         }

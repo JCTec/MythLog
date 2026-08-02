@@ -189,11 +189,11 @@ extension MythLogTests {
             defer { try? FileManager.default.removeItem(at: directory) }
 
             let store = FileSecretStore(directory: directory)
-            try store.writeSecret(Data("custom-key".utf8), account: "audio/detector")
+            try store.writeSecret(Data("custom-key".utf8), account: "custom/account")
 
             let fileNames = try FileManager.default.contentsOfDirectory(atPath: directory.path)
-            let resolved = try store.readSecret(account: "audio/detector")
-            try expect(fileNames == ["audio%2Fdetector"], "custom account should not create nested paths")
+            let resolved = try store.readSecret(account: "custom/account")
+            try expect(fileNames == ["custom%2Faccount"], "custom account should not create nested paths")
             try expect(
                 resolved == Data("custom-key".utf8),
                 "encoded custom account should read back"

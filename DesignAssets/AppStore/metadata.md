@@ -40,7 +40,7 @@ PRIVATE BY DESIGN
 Everything stays on your Mac. No account, no cloud service, no analytics. MythLog never logs keystrokes, never takes screenshots, never records your microphone, and never reads your messages or browsing. The recorder is a visible login item you install, see, and remove yourself — consent first, always.
 
 BUILT FOR TINKERERS
-Your own scripts and tools can add events to the timeline through a simple command-line interface — backup jobs, audio detectors, custom security checks, anything. MythLog is written in pure Swift, and its source is available for you to read and audit yourself.
+Your own scripts and tools can add events to the timeline through a simple command-line interface — backup jobs, custom security checks, anything. MythLog is written in pure Swift, and its source is available for you to read and audit yourself.
 
 WHAT IT RECORDS
 • Screen lock and unlock

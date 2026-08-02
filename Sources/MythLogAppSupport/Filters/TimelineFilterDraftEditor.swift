@@ -42,7 +42,7 @@ struct TimelineFilterDraftEditor: View {
                 Divider()
 
                 TextField("Source, e.g. custom", text: $draft.source)
-                TextField("Event name contains, e.g. audio", text: $draft.nameContains)
+                TextField("Event name contains", text: $draft.nameContains)
                 TextField("Event name exactly equals", text: $draft.nameEquals)
 
                 HStack(spacing: 10) {

@@ -43,11 +43,12 @@ extension MythLogTests {
         await runner.run("timeline layout signature ignores presentation-only changes") {
             let eventID = UUID(uuidString: "00000000-0000-0000-0000-000000000003")!
             let event = AlarmEvent(
-                id: eventID, observedAt: Date(timeIntervalSince1970: 3_000), source: "custom", name: "audio.detected")
+                id: eventID, observedAt: Date(timeIntervalSince1970: 3_000), source: "custom",
+                name: "example.detected")
             let first = timelineDisplayRecord(index: 0, event: event, displayState: .spotlight)
             var second = first
             second.presentation = TimelineEventPresentation(
-                title: "Renamed", symbolName: "mic.fill", color: .notification)
+                title: "Renamed", symbolName: "terminal.fill", color: .notification)
 
             let firstSignature = TimelineLayoutRequest(
                 records: [first], viewportWidth: 600, viewportHeight: 400, zoom: 1

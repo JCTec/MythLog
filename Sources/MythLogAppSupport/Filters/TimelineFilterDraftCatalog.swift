@@ -1,9 +1,6 @@
 enum TimelineFilterDraftCatalog {
     static let iconPresets = [
         "tag.fill",
-        "waveform",
-        "mic.fill",
-        "speaker.wave.2.fill",
         "bolt.fill",
         "antenna.radiowaves.left.and.right",
         "externaldrive.fill",
