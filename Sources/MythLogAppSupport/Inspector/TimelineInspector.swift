@@ -7,6 +7,8 @@ struct TimelineInspector: View {
     let summaryHeaderVisible: Bool
     let select: (TimelineRecord) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(spacing: 0) {
             InspectorHeader(record: record, presentation: presentation)
@@ -31,7 +33,7 @@ struct TimelineInspector: View {
                     proxy.scrollTo(record.id, anchor: .center)
                 }
                 .onChange(of: record.id) { _, newValue in
-                    withAnimation(.easeOut(duration: 0.25)) {
+                    withAnimation(ReducedMotion.animation(.easeOut(duration: 0.25), reduceMotion: reduceMotion)) {
                         proxy.scrollTo(newValue, anchor: .center)
                     }
                 }

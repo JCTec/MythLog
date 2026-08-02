@@ -16,6 +16,7 @@ struct CategoryFilterBar: View {
     let state: (TimelineFilterDefinition) -> CategoryDisplayState
     let cycle: (TimelineFilterDefinition) -> Void
     @State private var hoveredFilterID: TimelineFilterDefinition.ID?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -46,7 +47,10 @@ struct CategoryFilterBar: View {
                     let rect = proxy[anchor]
                     CategoryFilterTip(filter: filter, state: state(filter))
                         .position(x: rect.midX, y: rect.maxY + 49)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .transition(
+                            ReducedMotion.transition(
+                                .opacity.combined(with: .move(edge: .top)), reduceMotion: reduceMotion)
+                        )
                         .zIndex(1_000)
                         .allowsHitTesting(false)
                 }
@@ -69,6 +73,7 @@ struct FilterSettingsButton: View {
         ToolbarIconButton(
             symbolName: "slider.horizontal.3",
             helpText: "Configure timeline filters",
+            identifier: A11yIdentifier.toolbarFilterSettings,
             action: action
         )
     }

@@ -5,6 +5,15 @@ struct TimelineFilterDraftEditor: View {
     let create: () -> Void
 
     var body: some View {
+        // The filter settings sheet is a fixed size, and this column of fields is the tallest thing
+        // in it. Without a scroll container the Create button falls off the bottom at accessibility
+        // text sizes.
+        ScrollView {
+            editor
+        }
+    }
+
+    private var editor: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("New Filter")
                 .font(.headline)
@@ -53,6 +62,7 @@ struct TimelineFilterDraftEditor: View {
                 }
                 .disabled(!draft.canCreate)
                 .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier(A11yIdentifier.filterSettingsCreate)
             }
 
             Divider()

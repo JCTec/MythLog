@@ -7,11 +7,13 @@ struct TimelineCanvasContent: View {
     let select: (TimelineRecord) -> Void
 
     var body: some View {
+        let nodeCount = layout.nodes.count
+
         ZStack(alignment: .topLeading) {
             TimelineBackdrop(width: layout.contentWidth, height: layout.height, spineY: layout.spineY)
             TimeTicks(records: records, contentWidth: layout.contentWidth, spineY: layout.spineY)
 
-            ForEach(layout.nodes) { node in
+            ForEach(Array(layout.nodes.enumerated()), id: \.element.id) { index, node in
                 let selected = selectedID == node.id
                 TimelineConnector(
                     width: layout.contentWidth,
@@ -28,7 +30,10 @@ struct TimelineCanvasContent: View {
                     displayRecord: node.displayRecord,
                     placement: node.placement,
                     canvasHeight: layout.height,
-                    selected: selected
+                    selected: selected,
+                    chronologicalSortPriority: TimelineAccessibilityOrder.sortPriority(
+                        index: index, count: nodeCount),
+                    identifier: A11yIdentifier.timelineEventNode(index: index)
                 ) {
                     select(node.displayRecord.record)
                 }
@@ -36,5 +41,8 @@ struct TimelineCanvasContent: View {
             }
         }
         .frame(width: layout.contentWidth, height: layout.height)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Event timeline")
+        .accessibilityIdentifier(A11yIdentifier.timelineCanvas)
     }
 }

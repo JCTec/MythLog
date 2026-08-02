@@ -29,5 +29,7 @@ struct TimelineConnector: View {
         }
         .frame(width: width, height: height)
         .allowsHitTesting(false)
+        // A leader line from the spine to its node carries no information the node does not.
+        .accessibilityHidden(true)
     }
 }

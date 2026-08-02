@@ -12,8 +12,10 @@ struct AgentHealthPopover: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             HStack(spacing: AppSpacing.sm) {
+                // The level's own glyph rather than a generic waveform, so the popover states the
+                // health in a shape as well as a color.
                 IconTile(
-                    symbolName: "waveform.path.ecg",
+                    symbolName: presentation.level.symbolName,
                     tintColor: presentation.level.tintColor,
                     size: 30
                 )
@@ -80,12 +82,14 @@ private struct AgentHealthDetailRow: View {
     let title: String
     let value: String
 
+    @ScaledMetric(relativeTo: .caption) private var titleColumnWidth: CGFloat = 68
+
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .frame(width: 68, alignment: .leading)
+                .frame(width: titleColumnWidth, alignment: .leading)
             Text(value)
                 .font(.caption)
                 .lineLimit(2)

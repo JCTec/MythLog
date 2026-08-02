@@ -38,7 +38,7 @@ TITLE_OVERRIDES = {
 # Sidebar grouping by page filename stem (post-mapping wiki page name).
 SIDEBAR_GROUPS = [
     ("Start here", ["Home", "Architecture", "Security-Model", "Sandbox-Behavior"]),
-    ("Using MythLog", ["Installer", "Uninstall", "Custom-Events", "Notifications", "Telegram"]),
+    ("Using MythLog", ["Installer", "Uninstall", "Custom-Events", "Notifications", "Telegram", "Accessibility"]),
     ("Building & releasing", ["Contributing", "Releasing", "Verification", "Release-Checklist"]),
 ]
 

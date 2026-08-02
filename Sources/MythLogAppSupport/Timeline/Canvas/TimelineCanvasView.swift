@@ -7,6 +7,7 @@ struct TimelineCanvasView: View {
     let searchText: String
     let select: (TimelineRecord) -> Void
     @State private var layoutState = TimelineCanvasLayoutState.empty
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geometry in
@@ -30,7 +31,10 @@ struct TimelineCanvasView: View {
                 }
                 .onChange(of: records.last?.id) { _, newValue in
                     guard let newValue, searchText.isEmpty else { return }
-                    withAnimation(.easeOut(duration: 0.35)) {
+                    // The canvas slides sideways on its own whenever a new event lands. Under Reduce
+                    // Motion it jumps instead, which keeps the newest event in view without the
+                    // unprompted travel.
+                    withAnimation(ReducedMotion.animation(.easeOut(duration: 0.35), reduceMotion: reduceMotion)) {
                         proxy.scrollTo(newValue, anchor: .trailing)
                     }
                 }

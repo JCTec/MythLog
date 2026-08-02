@@ -6,6 +6,11 @@ struct MythLogMenuItemFactory {
     func command(title: String, action: Selector, keyEquivalent: String = "") -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
         item.target = target
+        // Every menu command gets a test identifier here rather than at each call site, so no menu
+        // can be added without one.
+        item.identifier = NSUserInterfaceItemIdentifier(
+            A11yIdentifier.menuCommand(selectorName: NSStringFromSelector(action))
+        )
         return item
     }
 

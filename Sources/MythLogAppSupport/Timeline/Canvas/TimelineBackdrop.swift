@@ -29,6 +29,8 @@ struct TimelineBackdrop: View {
             .stroke(Color(nsColor: .separatorColor).opacity(0.55), style: StrokeStyle(lineWidth: 1, lineCap: .round))
         }
         .frame(width: width, height: height)
+        // Grid lines and the spine are pure chrome; the timeline container names itself.
+        .accessibilityHidden(true)
     }
 
     private var tickCount: Int {

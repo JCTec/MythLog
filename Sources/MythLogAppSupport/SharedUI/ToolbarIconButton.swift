@@ -3,16 +3,21 @@ import SwiftUI
 struct ToolbarIconButton: View {
     let symbolName: String
     let helpText: String
+    var identifier: String
     var isActive = false
     var isEnabled = true
     var action: () -> Void
 
+    @ScaledMetric(relativeTo: .body) private var glyphSize: CGFloat = 14
+    @ScaledMetric(relativeTo: .body) private var buttonWidth: CGFloat = 32
+    @ScaledMetric(relativeTo: .body) private var buttonHeight: CGFloat = 30
+
     var body: some View {
         Button(action: action) {
             Image(systemName: symbolName)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: glyphSize, weight: .semibold))
                 .foregroundStyle(isActive ? Color.white : Color.secondary)
-                .frame(width: 32, height: 30)
+                .frame(width: buttonWidth, height: buttonHeight)
                 .background(backgroundColor, in: RoundedRectangle(cornerRadius: AppRadius.control))
                 .overlay {
                     RoundedRectangle(cornerRadius: AppRadius.control)
@@ -24,6 +29,7 @@ struct ToolbarIconButton: View {
         .opacity(isEnabled ? 1 : 0.45)
         .help(helpText)
         .accessibilityLabel(Text(helpText))
+        .accessibilityIdentifier(identifier)
     }
 
     private var backgroundColor: Color {

@@ -4,6 +4,8 @@ import SwiftUI
 struct NotificationDiagnosticsLastTestSection: View {
     let result: NotificationTestResult
 
+    @ScaledMetric(relativeTo: .caption) private var titleColumnWidth: CGFloat = 96
+
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
             Text("Last Test")
@@ -20,7 +22,7 @@ struct NotificationDiagnosticsLastTestSection: View {
             Text(title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .frame(width: 96, alignment: .leading)
+                .frame(width: titleColumnWidth, alignment: .leading)
 
             Text(value)
                 .font(.caption)

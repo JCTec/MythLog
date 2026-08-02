@@ -20,6 +20,8 @@ struct HashProofSection: View {
                         .fill(record.tintColor)
                         .frame(width: 14, height: 14)
                 }
+                // Decorative link between the two hashes; the hash lines name themselves.
+                .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 8) {
                     HashLine(title: "Previous", value: record.record.previousHash)

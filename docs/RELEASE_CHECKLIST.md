@@ -63,6 +63,34 @@ Use a clean user account or remove previous development installs first.
 - [ ] Stop and restart the recorder from the app menu.
 - [ ] Uninstall the recorder from the app menu.
 
+## Accessibility Smoke Test
+
+No automated check in this repository observes the rendered UI, so this pass is
+the only evidence the app behaves as [Accessibility](ACCESSIBILITY.md) describes.
+Run it on the built app, not a debug build, with events already in the timeline.
+
+- [ ] Turn on VoiceOver (<kbd>⌘</kbd><kbd>F5</kbd>) and walk the timeline and
+      toolbar with the keyboard only. Every control is reachable, is named, and
+      makes sense read aloud; VoiceOver reads events oldest to newest and never
+      lands on the grid, ticks, or connector lines.
+- [ ] Set **System Settings → Accessibility → Display → Text size** to the
+      largest setting. No text is clipped or truncated, and no button loses its
+      glyph.
+- [ ] Turn on **System Settings → Accessibility → Display → Color Filters →
+      Grayscale**. Warning and critical events are still distinguishable from
+      each other and from normal ones; recorder health and ledger status are
+      still readable.
+- [ ] Turn on **Reduce motion** and confirm selecting an event, opening the
+      inspector, and a new event arriving all still work without sliding or
+      springing.
+- [ ] With **Keyboard navigation** on, navigate the whole app without a mouse,
+      including the filter settings and ledger integrity sheets. Nothing is a
+      dead end, and <kbd>⌥</kbd><kbd>←</kbd>/<kbd>⌥</kbd><kbd>→</kbd> step
+      between events.
+- [ ] Record any regression against the [Known gaps](ACCESSIBILITY.md#known-gaps)
+      list — if a gap has closed or a new one appeared, update that page in the
+      same release.
+
 ## Distribution Readiness
 
 This is the DMG that actually ships. It runs `package-dmg.sh` without

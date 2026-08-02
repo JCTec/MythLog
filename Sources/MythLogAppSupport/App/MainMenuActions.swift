@@ -14,8 +14,14 @@ extension MythLogApplicationDelegate {
         store.copyVisibleCSV()
     }
 
+    /// Menu handlers live outside the SwiftUI view tree, so they read Reduce Motion from AppKit
+    /// rather than from `\.accessibilityReduceMotion`.
+    var prefersReducedMotion: Bool {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
+
     @objc func toggleInspector(_ sender: Any?) {
-        withAnimation(.easeOut(duration: 0.2)) {
+        withAnimation(ReducedMotion.animation(.easeOut(duration: 0.2), reduceMotion: prefersReducedMotion)) {
             store.toggleInspector()
         }
         refreshInspectorMenuState()
@@ -27,7 +33,7 @@ extension MythLogApplicationDelegate {
     }
 
     @objc func toggleInspectorSummaryHeader(_ sender: Any?) {
-        withAnimation(.easeOut(duration: 0.18)) {
+        withAnimation(ReducedMotion.animation(.easeOut(duration: 0.18), reduceMotion: prefersReducedMotion)) {
             store.toggleInspectorSummaryHeader()
         }
         refreshInspectorMenuState()
@@ -68,6 +74,22 @@ extension MythLogApplicationDelegate {
         store.timeRange = TimeRangePreset.last7Days.seconds
     }
 
+    @objc func selectPreviousEvent(_ sender: Any?) {
+        store.selectAdjacentEvent(offset: -1)
+    }
+
+    @objc func selectNextEvent(_ sender: Any?) {
+        store.selectAdjacentEvent(offset: 1)
+    }
+
+    @objc func selectOldestEvent(_ sender: Any?) {
+        store.selectOldestEvent()
+    }
+
+    @objc func selectNewestEvent(_ sender: Any?) {
+        store.selectNewestEvent()
+    }
+
     @objc func zoomIn(_ sender: Any?) {
         store.zoom = TimelineZoomLevel.next(after: store.zoom)
     }
@@ -83,5 +105,39 @@ extension MythLogApplicationDelegate {
             store.inspectorVisible || store.selectedRecord != nil || !store.visibleRecords.isEmpty
         inspectorAutoOpenMenuItem?.state = store.inspectorAutoOpens ? .on : .off
         inspectorSummaryHeaderMenuItem?.state = store.inspectorSummaryHeaderVisible ? .on : .off
+    }
+}
+
+extension MythLogApplicationDelegate: NSMenuItemValidation {
+    /// The event-selection commands are bound to option-arrow, which is also "move by word" in a
+    /// text field. AppKit offers a menu item its key equivalent *before* the field editor sees the
+    /// key, so without this the search field would silently lose word-wise cursor movement — a
+    /// keyboard regression introduced by a keyboard feature.
+    ///
+    /// A disabled menu item does not consume its key equivalent, so declining here hands the
+    /// keystroke back to the responder chain and the text field behaves normally.
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        guard let action = menuItem.action, Self.eventSelectionActions.contains(action) else {
+            return true
+        }
+
+        return !isEditingText
+    }
+
+    private static let eventSelectionActions: Set<Selector> = [
+        #selector(selectPreviousEvent(_:)),
+        #selector(selectNextEvent(_:)),
+        #selector(selectOldestEvent(_:)),
+        #selector(selectNewestEvent(_:)),
+    ]
+
+    private var isEditingText: Bool {
+        // Field editors are NSTextView, which is an NSText, so this covers the search field and
+        // every text field in the settings sheets.
+        guard let editor = NSApp.keyWindow?.firstResponder as? NSText else {
+            return false
+        }
+
+        return editor.isEditable
     }
 }

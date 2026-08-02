@@ -18,11 +18,16 @@ struct TelegramSettingsView: View {
                     ToolbarIconButton(
                         symbolName: "arrow.clockwise",
                         helpText: "Reload Telegram settings",
+                        identifier: A11yIdentifier.telegramSettingsReload,
                         isEnabled: !store.isLoading
                     ) {
                         store.load()
                     }
-                    ToolbarIconButton(symbolName: "xmark", helpText: "Close Telegram settings") {
+                    ToolbarIconButton(
+                        symbolName: "xmark",
+                        helpText: "Close Telegram settings",
+                        identifier: A11yIdentifier.telegramSettingsClose
+                    ) {
                         dismiss()
                     }
                 }

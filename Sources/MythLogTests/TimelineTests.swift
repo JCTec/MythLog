@@ -7,5 +7,6 @@ extension MythLogTests {
         await runTimelineStateTests(runner)
         await runTimelineLayoutTests(runner)
         await runTimelineStoreTests(runner)
+        await runAccessibilityTests(runner)
     }
 }

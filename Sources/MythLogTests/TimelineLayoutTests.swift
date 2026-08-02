@@ -273,10 +273,22 @@ extension MythLogTests {
             )
             let displayRecord = timelineDisplayRecord(index: 0, event: event, displayState: .spotlight)
 
+            let label = displayRecord.eventNodeAccessibilityLabel
+
+            try expect(label.hasPrefix("Terminal."), "accessibility label should lead with the event title")
             try expect(
-                displayRecord.eventNodeAccessibilityLabel.contains("Terminal, critical"),
-                "accessibility label should include title and severity"
+                label.contains("com.apple.Terminal."),
+                "accessibility label should include the subtitle detail sighted users get from the tooltip"
             )
+            try expect(
+                label.contains("Critical severity."),
+                "accessibility label should name the severity in words, not by color alone"
+            )
+            try expect(
+                label.contains(displayRecord.timestamp.inspectorDateString),
+                "accessibility label should include the full timestamp"
+            )
+            try expect(label.hasSuffix("."), "accessibility label should read as full sentences")
             try expect(
                 displayRecord.eventNodeHelpText.contains("Terminal\ncom.apple.Terminal"),
                 "help text should include title and subtitle on separate lines"

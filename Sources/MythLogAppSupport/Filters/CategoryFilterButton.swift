@@ -7,6 +7,12 @@ struct CategoryFilterButton: View {
     let action: () -> Void
     @State private var isHovering = false
 
+    @ScaledMetric(relativeTo: .body) private var glyphSize: CGFloat = 13
+    @ScaledMetric(relativeTo: .body) private var overlayGlyphSize: CGFloat = 14
+    @ScaledMetric(relativeTo: .body) private var spotlightDotSize: CGFloat = 7
+    @ScaledMetric(relativeTo: .body) private var buttonWidth: CGFloat = 34
+    @ScaledMetric(relativeTo: .body) private var buttonHeight: CGFloat = 30
+
     var body: some View {
         Button(action: action) {
             ZStack(alignment: .topTrailing) {
@@ -18,23 +24,23 @@ struct CategoryFilterButton: View {
                     }
 
                 Image(systemName: filter.symbolName)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: glyphSize, weight: .semibold))
                     .foregroundStyle(foregroundColor)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if state == .hidden {
                     Image(systemName: "slash")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: overlayGlyphSize, weight: .bold))
                         .foregroundStyle(.secondary)
                         .offset(x: -4, y: 4)
                 } else if state == .spotlight {
                     Circle()
                         .fill(filter.tintColor)
-                        .frame(width: 7, height: 7)
+                        .frame(width: spotlightDotSize, height: spotlightDotSize)
                         .offset(x: -5, y: 5)
                 }
             }
-            .frame(width: 34, height: 30)
+            .frame(width: buttonWidth, height: buttonHeight)
             .contentShape(RoundedRectangle(cornerRadius: AppRadius.control))
         }
         .buttonStyle(.plain)
@@ -49,6 +55,7 @@ struct CategoryFilterButton: View {
         .accessibilityLabel(Text(filter.title))
         .accessibilityValue(Text(state.accessibilityText))
         .accessibilityHint(Text("Cycles filter visibility."))
+        .accessibilityIdentifier(A11yIdentifier.toolbarCategoryFilter(id: filter.id))
     }
 
     private var foregroundColor: Color {

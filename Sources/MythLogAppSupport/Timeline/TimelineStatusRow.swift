@@ -10,18 +10,22 @@ struct TimelineStatusRow: View {
 
     var body: some View {
         HStack(spacing: AppSpacing.sm) {
-            LedgerStatusBadge(continuity: continuity)
-                .onTapGesture {
-                    showLedgerIntegrity()
-                }
+            // A Button, not a tap gesture: this is the only route to ledger integrity from the main
+            // window, and a tap gesture cannot be reached by keyboard or activated by VoiceOver.
+            Button(action: showLedgerIntegrity) {
+                LedgerStatusBadge(continuity: continuity)
+            }
+            .buttonStyle(.plain)
 
             Text("\(visibleCount) / \(totalCount)")
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("\(visibleCount) of \(totalCount) events shown")
 
             if let error = loadError {
                 Text(error)
                     .foregroundStyle(.red)
                     .lineLimit(1)
+                    .accessibilityLabel("Timeline load error: \(error)")
             }
 
             Spacer()

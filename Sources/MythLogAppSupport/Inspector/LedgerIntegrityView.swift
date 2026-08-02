@@ -26,11 +26,16 @@ struct LedgerIntegrityView: View {
                     ToolbarIconButton(
                         symbolName: "arrow.clockwise",
                         helpText: "Refresh ledger integrity",
+                        identifier: A11yIdentifier.ledgerIntegrityRefresh,
                         isEnabled: !integrityStore.isLoading
                     ) {
                         integrityStore.refresh()
                     }
-                    ToolbarIconButton(symbolName: "xmark", helpText: "Close integrity view") {
+                    ToolbarIconButton(
+                        symbolName: "xmark",
+                        helpText: "Close integrity view",
+                        identifier: A11yIdentifier.ledgerIntegrityClose
+                    ) {
                         dismiss()
                     }
                 }

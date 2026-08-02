@@ -48,6 +48,7 @@ Any contribution that changes those boundaries should be treated as a security/d
 - **Custom events** — scripts and tools emit structured events via `mythlogctl emit-log` and appear in the timeline.
 - **Watched Folders** — grant folders through a standard open panel; changes flow into the ledger (active while the app runs on the sandboxed build).
 - **App Store ready** — a fully sandboxed build with an App Group container, SMAppService login item, and attributed failures for anything the sandbox forbids.
+- **Built to be used by everyone** — the timeline reads as full sentences under VoiceOver in chronological order, text and controls scale with Dynamic Type, severity never depends on color alone, every control works from the keyboard, and Reduce Motion is respected. See [Accessibility](docs/ACCESSIBILITY.md) for what is verified and what is still missing.
 
 ## Documentation
 
@@ -59,6 +60,7 @@ Full documentation lives in the **[Wiki](https://github.com/JCTec/MythLog/wiki)*
 | [Security Model](https://github.com/JCTec/MythLog/wiki/Security-Model) | Threat model, HMAC hash chain, and hash anchoring |
 | [Sandbox Behavior](https://github.com/JCTec/MythLog/wiki/Sandbox-Behavior) | Per-feature sandboxed vs unsandboxed behavior |
 | [Custom Events](https://github.com/JCTec/MythLog/wiki/Custom-Events) | Emitting events from scripts and tools |
+| [Accessibility](https://github.com/JCTec/MythLog/wiki/Accessibility) | VoiceOver, Dynamic Type, keyboard, color, and known gaps |
 | [Installer](https://github.com/JCTec/MythLog/wiki/Installer) | Recorder install/login-item flow |
 | [Uninstall](https://github.com/JCTec/MythLog/wiki/Uninstall) | Removing MythLog and its local data |
 | [Contributing](https://github.com/JCTec/MythLog/wiki/Contributing) | Building, testing, and the release flow |

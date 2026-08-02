@@ -77,6 +77,8 @@ extension MythLogMainMenuBuilder {
                 action: #selector(MythLogApplicationDelegate.showLast7Days(_:))
             ))
         menu.addItem(.separator())
+        addEventSelectionItems(to: menu, factory: factory)
+        menu.addItem(.separator())
         menu.addItem(
             factory.command(
                 title: "Zoom In",
@@ -91,5 +93,45 @@ extension MythLogMainMenuBuilder {
             ))
         item.submenu = menu
         return item
+    }
+
+    /// Keyboard access to the canvas.
+    ///
+    /// Menu commands rather than bare arrow keys on the canvas: they work without Full Keyboard
+    /// Access turned on, they never fight the search field for the same keypress, and — unlike a
+    /// hidden gesture — the shortcuts are discoverable by reading the menu.
+    private func addEventSelectionItems(to menu: NSMenu, factory: MythLogMenuItemFactory) {
+        let previousEvent = factory.command(
+            title: "Select Previous Event",
+            action: #selector(MythLogApplicationDelegate.selectPreviousEvent(_:)),
+            keyEquivalent: String(UnicodeScalar(NSLeftArrowFunctionKey)!)
+        )
+        previousEvent.keyEquivalentModifierMask = [.option]
+
+        let nextEvent = factory.command(
+            title: "Select Next Event",
+            action: #selector(MythLogApplicationDelegate.selectNextEvent(_:)),
+            keyEquivalent: String(UnicodeScalar(NSRightArrowFunctionKey)!)
+        )
+        nextEvent.keyEquivalentModifierMask = [.option]
+
+        let oldestEvent = factory.command(
+            title: "Select Oldest Event",
+            action: #selector(MythLogApplicationDelegate.selectOldestEvent(_:)),
+            keyEquivalent: String(UnicodeScalar(NSLeftArrowFunctionKey)!)
+        )
+        oldestEvent.keyEquivalentModifierMask = [.command, .option]
+
+        let newestEvent = factory.command(
+            title: "Select Newest Event",
+            action: #selector(MythLogApplicationDelegate.selectNewestEvent(_:)),
+            keyEquivalent: String(UnicodeScalar(NSRightArrowFunctionKey)!)
+        )
+        newestEvent.keyEquivalentModifierMask = [.command, .option]
+
+        menu.addItem(previousEvent)
+        menu.addItem(nextEvent)
+        menu.addItem(oldestEvent)
+        menu.addItem(newestEvent)
     }
 }

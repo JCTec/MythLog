@@ -56,6 +56,7 @@ struct TimelineFilterSettingsView: View {
             } label: {
                 Label("Restore Defaults", systemImage: "arrow.counterclockwise")
             }
+            .accessibilityIdentifier(A11yIdentifier.filterSettingsRestoreDefaults)
 
             Spacer()
 
@@ -63,6 +64,7 @@ struct TimelineFilterSettingsView: View {
                 dismiss()
             }
             .keyboardShortcut(.cancelAction)
+            .accessibilityIdentifier(A11yIdentifier.filterSettingsDone)
         }
         .padding(16)
     }
@@ -82,7 +84,12 @@ private struct TimelineFilterSettingsHeader: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            ToolbarIconButton(symbolName: "xmark", helpText: "Close", action: close)
+            ToolbarIconButton(
+                symbolName: "xmark",
+                helpText: "Close",
+                identifier: A11yIdentifier.filterSettingsClose,
+                action: close
+            )
         }
         .padding(16)
     }

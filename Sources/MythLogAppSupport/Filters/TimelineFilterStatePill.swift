@@ -16,7 +16,10 @@ struct TimelineFilterStatePill: View {
         .padding(.vertical, 5)
         .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
         .disabled(!filter.isEnabled)
+        .accessibilityLabel(Text("\(filter.title) visibility"))
         .accessibilityValue(Text(state.accessibilityText))
+        .accessibilityHint(Text("Cycles between visible, prioritized, and hidden."))
+        .accessibilityIdentifier(A11yIdentifier.filterSettingsStatePill(id: filter.id))
         .help(state.accessibilityText)
     }
 }

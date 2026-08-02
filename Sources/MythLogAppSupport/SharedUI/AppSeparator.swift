@@ -5,5 +5,6 @@ struct AppSeparator: View {
         Rectangle()
             .fill(Color(nsColor: .separatorColor).opacity(0.55))
             .frame(height: 1)
+            .accessibilityHidden(true)
     }
 }

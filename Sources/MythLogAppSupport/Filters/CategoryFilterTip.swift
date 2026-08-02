@@ -4,13 +4,18 @@ struct CategoryFilterTip: View {
     let filter: TimelineFilterDefinition
     let state: CategoryDisplayState
 
+    @ScaledMetric(relativeTo: .caption) private var glyphSize: CGFloat = 12
+    @ScaledMetric(relativeTo: .caption) private var glyphColumnWidth: CGFloat = 15
+    @ScaledMetric(relativeTo: .caption2) private var stateDotSize: CGFloat = 6
+    @ScaledMetric(relativeTo: .caption) private var tipWidth: CGFloat = 142
+
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 7) {
                 Image(systemName: filter.symbolName)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: glyphSize, weight: .semibold))
                     .foregroundStyle(filter.tintColor)
-                    .frame(width: 15)
+                    .frame(width: glyphColumnWidth)
 
                 Text(filter.title)
                     .font(.caption.weight(.semibold))
@@ -21,7 +26,7 @@ struct CategoryFilterTip: View {
             HStack(spacing: 6) {
                 Circle()
                     .fill(state.indicatorColor(for: filter))
-                    .frame(width: 6, height: 6)
+                    .frame(width: stateDotSize, height: stateDotSize)
 
                 Text(state.tipText)
                     .font(.caption2.weight(.medium))
@@ -31,7 +36,7 @@ struct CategoryFilterTip: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .frame(width: 142, alignment: .leading)
+        .frame(width: tipWidth, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: AppRadius.control))
         .overlay {
             RoundedRectangle(cornerRadius: AppRadius.control)
@@ -39,5 +44,9 @@ struct CategoryFilterTip: View {
         }
         .shadow(color: .black.opacity(0.18), radius: 12, y: 5)
         .allowsHitTesting(false)
+        // Hover-only chrome. Nothing here is exclusive to it — the filter button it points at speaks
+        // the same title and state as its own label and value — so exposing it would just park
+        // VoiceOver on an overlay that only exists while a mouse is present.
+        .accessibilityHidden(true)
     }
 }

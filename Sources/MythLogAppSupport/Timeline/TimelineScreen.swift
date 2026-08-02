@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var store: TimelineStore
     @EnvironmentObject private var healthStore: AgentHealthStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let appActions: MythLogAppActions
 
     var body: some View {
@@ -47,7 +48,9 @@ struct ContentView: View {
                     installAgent: appActions.installAgent,
                     startAgent: appActions.startAgent
                 )
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .transition(
+                    ReducedMotion.transition(
+                        .move(edge: .top).combined(with: .opacity), reduceMotion: reduceMotion))
             }
             AppSeparator()
             HStack(spacing: 0) {
@@ -72,7 +75,9 @@ struct ContentView: View {
                         store.select(record)
                     }
                     .frame(width: 380)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                    .transition(
+                        ReducedMotion.transition(
+                            .move(edge: .trailing).combined(with: .opacity), reduceMotion: reduceMotion))
                 }
             }
         }
@@ -141,6 +146,8 @@ private struct AgentSetupBanner: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
             .help(content.help)
+            .accessibilityHint(content.help)
+            .accessibilityIdentifier(A11yIdentifier.recorderBannerAction)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

@@ -8,6 +8,10 @@ struct SearchField: NSViewRepresentable {
         let field = NSSearchField()
         field.placeholderString = "Search all events"
         field.delegate = context.coordinator
+        // NSSearchField's placeholder is not a name: VoiceOver reads it only while the field is
+        // empty, so a field with text in it would otherwise be an unnamed control.
+        field.setAccessibilityLabel("Search all events")
+        field.setAccessibilityIdentifier(A11yIdentifier.toolbarSearchField)
         return field
     }
 

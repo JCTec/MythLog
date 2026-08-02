@@ -23,11 +23,16 @@ struct NotificationDiagnosticsView: View {
                     ToolbarIconButton(
                         symbolName: "arrow.clockwise",
                         helpText: "Refresh notification status",
+                        identifier: A11yIdentifier.notificationDiagnosticsRefresh,
                         isEnabled: !diagnosticsStore.isLoading
                     ) {
                         diagnosticsStore.refresh()
                     }
-                    ToolbarIconButton(symbolName: "xmark", helpText: "Close notifications") {
+                    ToolbarIconButton(
+                        symbolName: "xmark",
+                        helpText: "Close notifications",
+                        identifier: A11yIdentifier.notificationDiagnosticsClose
+                    ) {
                         dismiss()
                     }
                 }

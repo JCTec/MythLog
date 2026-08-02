@@ -9,6 +9,9 @@ struct LedgerIntegritySummaryGrid: View {
     let fallbackRecordCount: Int
     @State private var showsTechnicalDetails = false
 
+    @ScaledMetric(relativeTo: .caption) private var titleColumnWidth: CGFloat = 82
+    @ScaledMetric(relativeTo: .caption) private var setupGlyphWidth: CGFloat = 18
+
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             if let errorMessage {
@@ -69,7 +72,7 @@ struct LedgerIntegritySummaryGrid: View {
         return HStack(alignment: .top, spacing: AppSpacing.sm) {
             Image(systemName: isMissingKey ? "key.fill" : "exclamationmark.triangle.fill")
                 .foregroundStyle(isMissingKey ? .orange : .red)
-                .frame(width: 18)
+                .frame(width: setupGlyphWidth)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(
@@ -101,7 +104,7 @@ struct LedgerIntegritySummaryGrid: View {
             Text(title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .frame(width: 82, alignment: .leading)
+                .frame(width: titleColumnWidth, alignment: .leading)
 
             Text(value)
                 .font(isMonospaced ? .system(.caption, design: .monospaced) : .caption)

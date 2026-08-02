@@ -12,6 +12,8 @@ struct TimeRangeControl: View {
         }
         .padding(3)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: AppRadius.control))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Time range")
     }
 }
 
@@ -19,6 +21,9 @@ struct TimePresetButton: View {
     let preset: TimeRangePreset
     let timeRange: TimeInterval
     let setTimeRange: (TimeInterval) -> Void
+
+    @ScaledMetric(relativeTo: .caption) private var buttonWidth: CGFloat = 34
+    @ScaledMetric(relativeTo: .caption) private var buttonHeight: CGFloat = 22
 
     var body: some View {
         let selected = preset.isSelected(timeRange)
@@ -29,7 +34,7 @@ struct TimePresetButton: View {
             Text(preset.title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(selected ? Color.white : Color.primary)
-                .frame(width: 34, height: 22)
+                .frame(width: buttonWidth, height: buttonHeight)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
                         .fill(selected ? Color.accentColor : Color.clear)
@@ -37,12 +42,19 @@ struct TimePresetButton: View {
         }
         .buttonStyle(.plain)
         .help("Show \(preset.title)")
+        .accessibilityLabel(Text(preset.menuTitle))
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityIdentifier(A11yIdentifier.toolbarTimeRange(id: preset.id))
     }
 }
 
 struct ZoomControl: View {
     @Binding var zoom: Double
     @State private var sliderIndex: Double = TimelineZoomLevel.normalizedIndex(for: 1)
+
+    @ScaledMetric(relativeTo: .caption) private var stepperSide: CGFloat = 18
+    @ScaledMetric(relativeTo: .caption) private var sliderWidth: CGFloat = 74
+    @ScaledMetric(relativeTo: .caption2) private var readoutWidth: CGFloat = 30
 
     var body: some View {
         HStack(spacing: 5) {
@@ -51,10 +63,12 @@ struct ZoomControl: View {
             } label: {
                 Image(systemName: "minus.magnifyingglass")
                     .font(.caption)
-                    .frame(width: 18, height: 18)
+                    .frame(width: stepperSide, height: stepperSide)
             }
             .buttonStyle(.plain)
             .disabled(TimelineZoomLevel.nearest(to: zoom) == TimelineZoomLevel.values.first)
+            .accessibilityLabel("Zoom out")
+            .accessibilityIdentifier(A11yIdentifier.toolbarZoomOut)
 
             Slider(
                 value: Binding(
@@ -66,23 +80,30 @@ struct ZoomControl: View {
                 in: 0...Double(TimelineZoomLevel.values.count - 1),
                 step: 1
             )
-            .frame(width: 74)
+            .frame(width: sliderWidth)
+            .accessibilityLabel("Timeline zoom")
+            .accessibilityValue(Text(TimelineZoomLevel.title(for: zoom)))
+            .accessibilityIdentifier(A11yIdentifier.toolbarZoomSlider)
 
             Text(TimelineZoomLevel.title(for: zoom))
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
-                .frame(width: 30)
+                .frame(width: readoutWidth)
+                // The slider next to it already speaks the same value.
+                .accessibilityHidden(true)
 
             Button {
                 setZoom(TimelineZoomLevel.next(after: zoom))
             } label: {
                 Image(systemName: "plus.magnifyingglass")
                     .font(.caption)
-                    .frame(width: 18, height: 18)
+                    .frame(width: stepperSide, height: stepperSide)
             }
             .buttonStyle(.plain)
             .disabled(TimelineZoomLevel.nearest(to: zoom) == TimelineZoomLevel.values.last)
+            .accessibilityLabel("Zoom in")
+            .accessibilityIdentifier(A11yIdentifier.toolbarZoomIn)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
