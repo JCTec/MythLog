@@ -1,0 +1,99 @@
+name: MythLog
+
+# Generated Xcode project spec (XcodeGen). The SwiftPM package (Package.swift) is
+# the single source of truth for all code; this only defines the macOS .app shell
+# that links the MythLogAppSupport library so you can build + run in Xcode.
+#
+#   brew install xcodegen        # one-time
+#   xcodegen generate            # (re)creates MythLog.xcodeproj
+#   open MythLog.xcodeproj      # select the "MythLog" scheme, then Cmd+R
+
+options:
+  bundleIdPrefix: com.jctec
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+
+packages:
+  MythLog:
+    path: .
+
+targets:
+  MythLog:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/MythLogApp
+      - path: DesignAssets/AppIcon/MythLog.icns
+        buildPhase: resources
+    dependencies:
+      - package: MythLog
+        product: MythLogAppSupport
+    settings:
+      base:
+        PRODUCT_NAME: MythLog
+        PRODUCT_BUNDLE_IDENTIFIER: com.jctec.mythlog
+        INFOPLIST_FILE: Xcode/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        # Single source of truth for the app version + build. Info.plist reads
+        # these via $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION). Bump the
+        # build here (not in Xcode's UI, which xcodegen overwrites) then
+        # `xcodegen generate`.
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "3"
+        ENABLE_HARDENED_RUNTIME: YES
+        # Automatic signing for local + Archive / App Store Connect upload.
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        CODE_SIGNING_REQUIRED: YES
+        CODE_SIGNING_ALLOWED: YES
+        DEVELOPMENT_TEAM: S8662L649U
+      configs:
+        # Debug runs UNSANDBOXED so the viewer resolves the real ~/Library and
+        # can see the legacy LaunchAgent recorder that xcode-dev-install-recorder.sh
+        # installs there. A DerivedData app can't launch the sandboxed SMAppService
+        # login item (launch constraints -> OS_REASON_EXEC), so dev uses the
+        # legacy path end-to-end. See Xcode/MythLog.Debug.entitlements.
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: Xcode/MythLog.Debug.entitlements
+          ENABLE_APP_SANDBOX: NO
+        # Release/Archive: Mac App Store requires App Sandbox on every executable
+        # in the bundle. Emit dSYMs for the main app binary (helper dSYMs are
+        # copied into the archive by scripts/xcode-copy-helpers.sh).
+        Release:
+          CODE_SIGN_ENTITLEMENTS: Xcode/MythLog.entitlements
+          ENABLE_APP_SANDBOX: YES
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+    postCompileScripts:
+      - name: Bundle helper executables (mythlog-agent, mythlogctl)
+        script: '"$SRCROOT/scripts/xcode-copy-helpers.sh"'
+        basedOnDependencyAnalysis: false
+      # Debug-only, CI-guarded: install + start the recorder via the legacy
+      # LaunchAgent so it actually runs from a DerivedData build (SMAppService
+      # login items are killed there by launch constraints). No-op in
+      # Release/Archive/CI. See scripts/xcode-dev-install-recorder.sh.
+      - name: Dev-only recorder LaunchAgent (Debug, non-CI)
+        script: '"$SRCROOT/scripts/xcode-dev-install-recorder.sh"'
+        basedOnDependencyAnalysis: false
+
+# Canonical scheme. Run THIS ("MythLog") — it launches the MythLog.app bundle.
+# Do NOT run the auto-generated "MythLogApp" scheme: that is the raw SwiftPM
+# executable and launches unbundled, which crashes at UNUserNotificationCenter
+# .current() with "bundleProxyForCurrentProcess is nil".
+schemes:
+  MythLog:
+    build:
+      targets:
+        MythLog: all
+    run:
+      config: Debug
+    profile:
+      config: Release
+    archive:
+      config: Release

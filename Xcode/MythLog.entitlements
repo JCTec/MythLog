@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Required for Mac App Store distribution. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!-- Telegram / remote checkpoint outbound HTTPS. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<!-- Proof export / open-panel file access. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<!-- User-selected watched folders (Part E2): read-only access plus app-scope
+	     security-scoped bookmarks so the folder grant survives relaunch. -->
+	<key>com.apple.security.files.user-selected.read-only</key>
+	<true/>
+	<key>com.apple.security.files.bookmarks.app-scope</key>
+	<true/>
+	<!-- Shared container for ledger/config/secrets/runtime/outbox/spool, read by
+	     the viewer app, the recorder login item, and mythlogctl alike. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>S8662L649U.com.jctec.mythlog.shared</string>
+	</array>
+	<!-- iCloud Drive destination for ledger hash anchors (Part C). Anchors leave
+	     the Mac's own trust domain by landing in the ubiquity container. Generated
+	     by the iCloud → iCloud Documents capability; the portal must provision it. -->
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.com.jctec.mythlog</string>
+	</array>
+	<key>com.apple.developer.ubiquity-container-identifiers</key>
+	<array>
+		<string>iCloud.com.jctec.mythlog</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudDocuments</string>
+	</array>
+</dict>
+</plist>

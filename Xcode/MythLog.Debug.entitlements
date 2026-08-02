@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- DEVELOPMENT ONLY. This Debug build runs UNSANDBOXED on purpose.
+
+	     Why: a DerivedData-hosted app cannot launch its SMAppService login-item
+	     recorder (launch constraints kill every spawn with OS_REASON_EXEC), so
+	     dev uses the legacy ~/Library LaunchAgent recorder instead (installed by
+	     scripts/xcode-dev-install-recorder.sh). That recorder runs unsandboxed
+	     and writes ~/Library/Application Support/MythLog; for the viewer to SEE
+	     it, the viewer must resolve the same real ~/Library — i.e. it too must be
+	     unsandboxed. Hence no com.apple.security.app-sandbox here.
+
+	     Release/Archive keep Xcode/MythLog.entitlements (sandbox + app group +
+	     iCloud) unchanged — this file is Debug-config only. Never ship it. -->
+	<key>com.apple.security.get-task-allow</key>
+	<true/>
+</dict>
+</plist>

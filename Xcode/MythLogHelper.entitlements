@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Nested helper executables must also enable App Sandbox for Mac App Store.
+	     Do not use com.apple.security.inherit here: these binaries are launched by
+	     launchd / SMAppService and as standalone CLI tools, so they need their own
+	     sandbox (not inheritance from a parent process). -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!-- Outbound network for optional notifiers / checkpoints invoked via CLI. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<!-- User-selected paths when exporting proof bundles from mythlogctl. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<!-- Same shared container as the app: the recorder helper and mythlogctl
+	     read/write the ledger, config, secrets, runtime status, outbox, and the
+	     event spool here so all three processes share one source of truth. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>S8662L649U.com.jctec.mythlog.shared</string>
+	</array>
+	<!-- The recorder helper writes ledger hash anchors, so it needs the same
+	     iCloud Drive (ubiquity container) access as the app (Part C). -->
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.com.jctec.mythlog</string>
+	</array>
+	<key>com.apple.developer.ubiquity-container-identifiers</key>
+	<array>
+		<string>iCloud.com.jctec.mythlog</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudDocuments</string>
+	</array>
+</dict>
+</plist>

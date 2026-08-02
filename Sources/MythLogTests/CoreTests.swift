@@ -1,0 +1,17 @@
+import Foundation
+
+extension MythLogTests {
+    static func runCoreTests(_ runner: TestRunner) async {
+        await runSandboxEnvironmentTests(runner)
+        await runSharedContainerTests(runner)
+        await runAnchorDestinationTests(runner)
+        await runAttributedFailureTests(runner)
+        await runSpoolTransportTests(runner)
+        await runWatchAvailabilityTests(runner)
+        await runCoreLedgerTests(runner)
+        await runCoreRuleTests(runner)
+        await runCoreConfigSecretTests(runner)
+        await runCoreOperationsTests(runner)
+        await runCoreLaunchAgentTests(runner)
+    }
+}

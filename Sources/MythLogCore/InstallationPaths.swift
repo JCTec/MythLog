@@ -1,0 +1,136 @@
+import Foundation
+
+#if canImport(Darwin)
+    import Darwin
+#endif
+
+public struct MythLogInstallationPaths: Codable, Equatable, Sendable {
+    public var label: String
+    public var userID: UInt32
+    public var homeDirectory: URL
+    public var installDirectory: URL
+    public var binDirectory: URL
+    public var agentBundleURL: URL
+    public var agentExecutableURL: URL
+    public var controlExecutableURL: URL
+    public var configURL: URL
+    public var defaultLedgerURL: URL
+    public var plistURL: URL
+    public var logDirectory: URL
+    public var standardOutputURL: URL
+    public var standardErrorURL: URL
+
+    public init(
+        label: String = "com.jctec.mythlog.agent",
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+        userID: UInt32 = MythLogInstallationPaths.currentUserID()
+    ) {
+        self.label = label
+        self.userID = userID
+        self.homeDirectory = homeDirectory
+
+        let base = MythLogInstallationPaths.resolveBaseDirectories(homeDirectory: homeDirectory)
+        let installDirectory = base.install
+        let binDirectory = installDirectory.appendingPathComponent("bin", isDirectory: true)
+        let logDirectory = base.logs
+
+        self.installDirectory = installDirectory
+        self.binDirectory = binDirectory
+        self.agentBundleURL = installDirectory.appendingPathComponent("MythLog.app", isDirectory: true)
+        self.agentExecutableURL =
+            agentBundleURL
+            .appendingPathComponent("Contents")
+            .appendingPathComponent("MacOS")
+            .appendingPathComponent("MythLog")
+        self.controlExecutableURL = binDirectory.appendingPathComponent("mythlogctl")
+        self.configURL = installDirectory.appendingPathComponent("config.json")
+        self.defaultLedgerURL = installDirectory.appendingPathComponent("events.jsonl")
+        self.plistURL = base.launchAgents.appendingPathComponent("\(label).plist")
+        self.logDirectory = logDirectory
+        self.standardOutputURL = logDirectory.appendingPathComponent("agent.out.log")
+        self.standardErrorURL = logDirectory.appendingPathComponent("agent.err.log")
+    }
+
+    private struct BaseDirectories {
+        var install: URL
+        var logs: URL
+        var launchAgents: URL
+    }
+
+    /// Resolves the base directories for install support, logs, and LaunchAgents.
+    ///
+    /// Unsandboxed builds keep the historical `~/Library` layout unchanged. Under
+    /// the sandbox every path moves into the App Group container so the viewer
+    /// app, recorder helper, and mythlogctl resolve identical files. When the
+    /// container cannot be resolved while sandboxed we never fall back to the
+    /// private container: we log the attributed failure and return an
+    /// obviously-invalid sentinel base so any I/O fails loudly. Install and agent
+    /// startup guard the container explicitly (throwing
+    /// `MythLogError.appGroupUnavailable`) before real work begins.
+    private static func resolveBaseDirectories(homeDirectory: URL) -> BaseDirectories {
+        guard SandboxEnvironment.isSandboxed else {
+            let library = homeDirectory.appendingPathComponent("Library", isDirectory: true)
+            return BaseDirectories(
+                install:
+                    library
+                    .appendingPathComponent("Application Support", isDirectory: true)
+                    .appendingPathComponent("MythLog", isDirectory: true),
+                logs:
+                    library
+                    .appendingPathComponent("Logs", isDirectory: true)
+                    .appendingPathComponent("MythLog", isDirectory: true),
+                launchAgents: library.appendingPathComponent("LaunchAgents", isDirectory: true)
+            )
+        }
+
+        guard let container = try? MythLogSharedContainer.containerURL() else {
+            let sentinel = MythLogSharedContainer.unresolvedSentinelDirectory
+            return BaseDirectories(
+                install: sentinel.appendingPathComponent("MythLog", isDirectory: true),
+                logs: sentinel.appendingPathComponent("Logs", isDirectory: true),
+                launchAgents: sentinel.appendingPathComponent("LaunchAgents", isDirectory: true)
+            )
+        }
+
+        let support = container.appendingPathComponent("Application Support", isDirectory: true)
+        return BaseDirectories(
+            install: support.appendingPathComponent("MythLog", isDirectory: true),
+            logs:
+                container
+                .appendingPathComponent("Library", isDirectory: true)
+                .appendingPathComponent("Logs", isDirectory: true)
+                .appendingPathComponent("MythLog", isDirectory: true),
+            launchAgents:
+                container
+                .appendingPathComponent("Library", isDirectory: true)
+                .appendingPathComponent("LaunchAgents", isDirectory: true)
+        )
+    }
+
+    public var guiDomain: String {
+        "gui/\(userID)"
+    }
+
+    public var launchAgentService: String {
+        "\(guiDomain)/\(label)"
+    }
+
+    public static func currentUserID() -> UInt32 {
+        #if canImport(Darwin)
+            getuid()
+        #else
+            0
+        #endif
+    }
+
+    /// The event spool directory for this install: the configured
+    /// `storage.spoolDirectory` when a config is present, otherwise the default
+    /// install-tree spool. Producers (the app WatchService, mythlogctl) resolve
+    /// the same directory the agent watches.
+    public func resolvedSpoolDirectory() -> URL {
+        if let config = try? MythLogConfig.load(from: configURL) {
+            return PathResolver.fileURL(config.storage.spoolDirectory)
+        }
+        return installDirectory.appendingPathComponent("spool", isDirectory: true)
+    }
+}

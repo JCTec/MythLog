@@ -1,0 +1,11 @@
+import Foundation
+
+extension MythLogTests {
+    static func runTimelineTests(_ runner: TestRunner) async {
+        await runAppSupportTests(runner)
+        await runWatchedFoldersTests(runner)
+        await runTimelineStateTests(runner)
+        await runTimelineLayoutTests(runner)
+        await runTimelineStoreTests(runner)
+    }
+}

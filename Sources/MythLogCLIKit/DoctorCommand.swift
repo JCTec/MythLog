@@ -1,0 +1,247 @@
+import Foundation
+import MythLogCore
+
+public struct DoctorCommand {
+    private let arguments: [String]
+
+    public init(arguments: [String]) {
+        self.arguments = arguments
+    }
+
+    public func run() async throws -> Never {
+        let report = await buildReport()
+
+        if arguments.contains("--json") {
+            print(DoctorReportRenderer.jsonString(report))
+        } else {
+            print(DoctorReportRenderer.humanReport(report))
+        }
+
+        Foundation.exit(report.healthy ? 0 : 3)
+    }
+
+    private func buildReport() async -> DoctorReport {
+        let paths = MythLogInstallationPaths()
+        let configURL = URL(fileURLWithPath: optionValue("--config") ?? paths.configURL.path)
+        let checkedAt = Date()
+        let sandboxed = SandboxEnvironment.isSandboxed
+        var checks = [DoctorCheck]()
+
+        // Under the sandbox every install path lives in the App Group container.
+        // Probe it first: when it cannot be resolved the file checks below will
+        // all read as "missing", so attribute the root cause to the sandbox
+        // rather than leaving those failures unexplained.
+        if sandboxed {
+            do {
+                let container = try MythLogSharedContainer.containerURL()
+                checks.append(.pass("app group container", container.path, required: true))
+            } catch {
+                checks.append(
+                    .fail(
+                        "app group container",
+                        "\(String(describing: error)) — install paths below cannot be resolved",
+                        required: true
+                    )
+                )
+            }
+        }
+
+        let fileSnapshot = await FileSnapshot.capture(paths: paths, configURL: configURL)
+        checks.append(fileSnapshot.check(name: "agent binary", file: \.agentBinary, required: true))
+        checks.append(fileSnapshot.check(name: "control tool", file: \.controlBinary, required: true))
+        checks.append(fileSnapshot.check(name: "config file", file: \.configFile, required: true))
+        checks.append(fileSnapshot.check(name: "legacy launch agent plist", file: \.plistFile, required: false))
+        checks.append(fileSnapshot.check(name: "log directory", file: \.logDirectory, required: false))
+
+        let configResult = await loadConfig(from: configURL)
+        var config: MythLogConfig?
+        switch configResult {
+        case .success(let loaded):
+            config = loaded
+            let validation = ConfigValidator.validate(loaded)
+            let criticalIssues = validation.issues.filter { $0.severity >= .critical }
+            if validation.isValid {
+                checks.append(.pass("config validation", "config schema and rules are valid", required: true))
+            } else {
+                checks.append(
+                    .fail(
+                        "config validation",
+                        criticalIssues.map(\.message).joined(separator: "; "),
+                        required: true
+                    )
+                )
+            }
+            for issue in validation.issues where issue.severity < .critical {
+                checks.append(.warning("config warning", issue.message, required: false))
+            }
+        case .failure(let error):
+            checks.append(.fail("config load", String(describing: error), required: true))
+        }
+
+        let launchctl = await ProcessExecution.run(
+            executable: "/bin/launchctl",
+            arguments: ["print", paths.launchAgentService]
+        )
+        checks.append(
+            launchctl.terminationStatus == 0
+                ? .pass("launch agent", "\(paths.launchAgentService) is visible to launchctl", required: true)
+                : .fail("launch agent", launchctl.summary, required: true)
+        )
+
+        let notification = await notificationSnapshot(config: config)
+        checks.append(.pass("notification status", notification.authorizationStatus))
+
+        var ledger: LedgerDoctorSnapshot?
+        if let config {
+            let ledgerResult = await verifyLedger(config: config)
+            switch ledgerResult {
+            case .success(let snapshot):
+                ledger = snapshot
+                if snapshot.verification.isValid {
+                    checks.append(
+                        .pass(
+                            "ledger hash chain",
+                            "\(snapshot.verification.recordCount) verified record(s)",
+                            required: true
+                        )
+                    )
+                    if snapshot.verification.recordCount == 0 {
+                        checks.append(
+                            .warning(
+                                "ledger activity",
+                                "ledger is valid but empty; recorder has not written an event yet",
+                                required: false
+                            )
+                        )
+                    } else if let staleMessage = DoctorLedgerFreshness.staleMessage(
+                        snapshot: snapshot, config: config)
+                    {
+                        checks.append(.warning("ledger freshness", staleMessage, required: false))
+                    }
+                } else {
+                    checks.append(
+                        .fail(
+                            "ledger hash chain",
+                            snapshot.verification.issues.joined(separator: "; "),
+                            required: true
+                        )
+                    )
+                }
+            case .failure(let error):
+                checks.append(.fail("ledger hash chain", String(describing: error), required: true))
+            }
+        }
+
+        let anchor = await anchorSnapshot(config: config)
+        if let anchor, anchor.enabled {
+            checks.append(.pass("anchor destination", anchor.destination))
+            let anchorUnavailable = anchor.lastStatus.hasPrefix("unavailable")
+            checks.append(
+                anchorUnavailable
+                    ? .warning("anchor status", anchor.lastStatus, required: false)
+                    : .pass("anchor status", anchor.lastStatus))
+        }
+
+        return DoctorReport(
+            checkedAt: checkedAt,
+            sandboxed: sandboxed,
+            healthy: !checks.contains { $0.required && $0.status == .fail },
+            paths: paths,
+            configPath: configURL.path,
+            ledgerPath: config.map { PathResolver.fileURL($0.storage.ledgerPath).path } ?? paths.defaultLedgerURL.path,
+            checks: checks,
+            launchctl: launchctl,
+            notification: notification,
+            ledger: ledger,
+            anchor: anchor
+        )
+    }
+
+    /// Resolves the anchor destination and reads the last written anchor, off the
+    /// main thread (iCloud ubiquity resolution blocks). An unavailable iCloud
+    /// container is reported as an attributed status string, not an error.
+    private func anchorSnapshot(config: MythLogConfig?) async -> AnchorDoctorSnapshot? {
+        guard let config else {
+            return nil
+        }
+        let anchorConfig = config.hashAnchor
+        return await Task.detached(priority: .utility) {
+            let resolver = AnchorDestinationResolver(config: anchorConfig)
+            guard anchorConfig.enabled else {
+                return AnchorDoctorSnapshot(
+                    enabled: false, destination: resolver.describeDestination(), lastStatus: "anchoring disabled")
+            }
+
+            let destination = resolver.describeDestination()
+            do {
+                let directory = try resolver.resolveDirectory()
+                if let latest = try? FileLedgerHashAnchorSink.readLatest(directory: directory) {
+                    let status =
+                        "record \(latest.recordCount), hash \(latest.lastHash.prefix(12))…, "
+                        + "valid=\(latest.isLedgerValid), at \(latest.createdAt)"
+                    return AnchorDoctorSnapshot(enabled: true, destination: destination, lastStatus: status)
+                }
+                return AnchorDoctorSnapshot(
+                    enabled: true, destination: destination, lastStatus: "no anchor written yet")
+            } catch {
+                return AnchorDoctorSnapshot(
+                    enabled: true,
+                    destination: destination,
+                    lastStatus: "unavailable: \(String(describing: error))"
+                )
+            }
+        }.value
+    }
+
+    private func optionValue(_ option: String) -> String? {
+        guard let index = arguments.firstIndex(of: option) else {
+            return nil
+        }
+        let valueIndex = arguments.index(after: index)
+        guard valueIndex < arguments.endIndex else {
+            return nil
+        }
+        return arguments[valueIndex]
+    }
+
+    private func loadConfig(from url: URL) async -> Result<MythLogConfig, ErrorDescription> {
+        await Task.detached(priority: .utility) {
+            do {
+                return .success(try MythLogConfig.load(from: url))
+            } catch {
+                return .failure(ErrorDescription(error))
+            }
+        }.value
+    }
+
+    private func verifyLedger(config: MythLogConfig) async -> Result<LedgerDoctorSnapshot, ErrorDescription> {
+        await Task.detached(priority: .userInitiated) {
+            do {
+                let secretStore = FileSecretStore.installedStore(for: config)
+                let hmacKey = try AgentFactory.hmacKey(for: config, secretStore: secretStore)
+                let ledgerURL = PathResolver.fileURL(config.storage.ledgerPath)
+                let ledger = try HashChainLedger(fileURL: ledgerURL, hmacKey: hmacKey)
+                let verification = try await ledger.verify()
+                let records = try await ledger.readRecords()
+                return .success(
+                    LedgerDoctorSnapshot(
+                        path: ledgerURL.path,
+                        verification: verification,
+                        latestEventAt: records.last?.event.observedAt,
+                        latestEventName: records.last.map { "\($0.event.source).\($0.event.name)" }
+                    )
+                )
+            } catch {
+                return .failure(ErrorDescription(error))
+            }
+        }.value
+    }
+
+    private func notificationSnapshot(config: MythLogConfig?) async -> NotificationAuthorizationSnapshot {
+        let notifier = ResilientLocalNotifier(
+            soundEnabled: config?.notifications.sound ?? true,
+            useAppleScriptFallback: config?.notifications.appleScriptFallback ?? true
+        )
+        return await notifier.authorizationSnapshot()
+    }
+}
