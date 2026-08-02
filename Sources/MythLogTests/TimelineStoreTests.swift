@@ -108,11 +108,11 @@ extension MythLogTests {
             }
             let preferences = TimelinePreferences(defaults: defaults)
             let filter = TimelineFilterDefinition(
-                id: "custom.audio",
-                title: "Audio",
-                symbolName: "waveform",
-                color: .audio,
-                match: TimelineFilterMatch(source: "custom", nameContains: "audio"),
+                id: "custom.backup",
+                title: "Backup",
+                symbolName: "externaldrive.fill",
+                color: .custom,
+                match: TimelineFilterMatch(source: "custom", nameContains: "backup"),
                 defaultState: .spotlight,
                 isEnabled: true
             )

@@ -25,6 +25,5 @@ public struct TimelineFilterColor: Codable, Equatable, Sendable {
     public static let log = TimelineFilterColor(red: 0.12, green: 0.56, blue: 0.62)
     public static let ledger = TimelineFilterColor(red: 0.52, green: 0.40, blue: 0.24)
     public static let custom = TimelineFilterColor(red: 0.58, green: 0.32, blue: 0.72)
-    public static let audio = TimelineFilterColor(red: 0.10, green: 0.58, blue: 0.80)
     public static let secondary = TimelineFilterColor(red: 0.45, green: 0.47, blue: 0.50)
 }

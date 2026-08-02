@@ -30,7 +30,6 @@ struct TimelineFilterDraft {
 }
 
 extension TimelineFilterDraft {
-    static let audioTemplate = TimelineFilterDraftCatalog.audioTemplate
     static let iconPresets = TimelineFilterDraftCatalog.iconPresets
     static let colorPresets = TimelineFilterDraftCatalog.colorPresets
 }

@@ -166,22 +166,22 @@ extension MythLogTests {
         await runner.run("timeline presentation prefers spotlight filter") {
             let record = timelineRecord(
                 index: 0,
-                event: AlarmEvent(source: "custom", name: "audio.detector.triggered")
+                event: AlarmEvent(source: "custom", name: "backup.checkpoint.written")
             )
             let normal = TimelineFilterDefinition(
-                id: "custom.audio-normal",
-                title: "Audio Normal",
-                symbolName: "waveform",
-                color: .audio,
-                match: TimelineFilterMatch(source: "custom", nameContains: "audio"),
+                id: "custom.backup-normal",
+                title: "Backup Normal",
+                symbolName: "externaldrive.fill",
+                color: .custom,
+                match: TimelineFilterMatch(source: "custom", nameContains: "backup"),
                 defaultState: .normal
             )
             let spotlight = TimelineFilterDefinition(
-                id: "custom.audio-priority",
-                title: "Audio Priority",
-                symbolName: "mic.fill",
+                id: "custom.backup-priority",
+                title: "Backup Priority",
+                symbolName: "network",
                 color: .notification,
-                match: TimelineFilterMatch(source: "custom", nameContains: "audio"),
+                match: TimelineFilterMatch(source: "custom", nameContains: "backup"),
                 defaultState: .spotlight
             )
             let presentation = TimelineDerivedState.presentation(
@@ -190,17 +190,17 @@ extension MythLogTests {
                 filterStates: [normal.id: .normal, spotlight.id: .spotlight]
             )
 
-            try expect(presentation.title == "Audio Priority", "spotlight filter should drive presentation")
-            try expect(presentation.symbolName == "mic.fill", "spotlight icon should drive presentation")
+            try expect(presentation.title == "Backup Priority", "spotlight filter should drive presentation")
+            try expect(presentation.symbolName == "network", "spotlight icon should drive presentation")
         }
 
         await runner.run("timeline display state handles empty and hidden filter sets") {
-            let audio = TimelineFilterDefinition(
-                id: "custom.audio-hidden",
-                title: "Audio Hidden",
-                symbolName: "waveform",
-                color: .audio,
-                match: TimelineFilterMatch(source: "custom", nameContains: "audio"),
+            let hiddenFilter = TimelineFilterDefinition(
+                id: "custom.backup-hidden",
+                title: "Backup Hidden",
+                symbolName: "externaldrive.fill",
+                color: .custom,
+                match: TimelineFilterMatch(source: "custom", nameContains: "backup"),
                 defaultState: .normal
             )
 
@@ -215,9 +215,9 @@ extension MythLogTests {
                 filterStates: [:]
             )
             let hiddenMatch = TimelineDerivedState.displayState(
-                for: [audio],
+                for: [hiddenFilter],
                 enabledFiltersAreEmpty: false,
-                filterStates: [audio.id: .hidden]
+                filterStates: [hiddenFilter.id: .hidden]
             )
 
             try expect(noEnabledFilters == .normal, "no enabled filters should show records normally")
@@ -260,44 +260,26 @@ extension MythLogTests {
 
         await runner.run("timeline filter draft factory trims values and falls back color") {
             var draft = TimelineFilterDraft()
-            draft.title = "  Audio Detector  "
-            draft.symbolName = "waveform"
+            draft.title = "  Backup Watcher  "
+            draft.symbolName = "externaldrive.fill"
             draft.colorID = "missing-color"
             draft.source = " custom "
-            draft.nameContains = " audio "
+            draft.nameContains = " backup "
             draft.metadataKey = " device "
-            draft.metadataValue = " microphone "
+            draft.metadataValue = " external-drive "
 
             let filter = TimelineFilterDraftFactory().makeFilter(from: draft)
 
             try expect(filter.id.hasPrefix("custom."), "custom filter ids should use custom prefix")
-            try expect(filter.title == "Audio Detector", "factory should trim filter titles")
+            try expect(filter.title == "Backup Watcher", "factory should trim filter titles")
             try expect(filter.color == .custom, "unknown draft colors should fall back to custom")
             try expect(filter.defaultState == .spotlight, "new filters should default to priority")
             try expect(!filter.isBuiltIn, "created filters should be user filters")
             try expect(filter.isEnabled, "created filters should start enabled")
             try expect(filter.match.source == "custom", "factory should trim source")
-            try expect(filter.match.nameContains == "audio", "factory should trim name contains")
+            try expect(filter.match.nameContains == "backup", "factory should trim name contains")
             try expect(filter.match.metadataKey == "device", "factory should trim metadata key")
-            try expect(filter.match.metadataValue == "microphone", "factory should trim metadata value")
-        }
-
-        await runner.run("timeline filter draft catalog exposes audio template") {
-            let template = TimelineFilterDraft.audioTemplate
-
-            try expect(template.canCreate, "audio template should be creatable")
-            try expect(template.symbolName == "waveform", "audio template should use waveform icon")
-            try expect(template.colorID == "audio", "audio template should use audio color preset")
-            try expect(template.match.source == "custom", "audio template should target custom events")
-            try expect(template.match.nameContains == "audio", "audio template should match audio event names")
-            try expect(
-                TimelineFilterDraft.iconPresets.contains(template.symbolName),
-                "audio template icon should be present in picker presets"
-            )
-            try expect(
-                TimelineFilterDraft.colorPresets.contains { $0.id == template.colorID },
-                "audio template color should be present in picker presets"
-            )
+            try expect(filter.match.metadataValue == "external-drive", "factory should trim metadata value")
         }
 
         await runner.run("timeline default filters are stable unique built-ins") {

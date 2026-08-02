@@ -44,9 +44,6 @@ struct TimelineFilterDraftEditor: View {
             .textFieldStyle(.roundedBorder)
 
             HStack {
-                Button("Audio Template") {
-                    draft = .audioTemplate
-                }
                 Button("Clear") {
                     draft = TimelineFilterDraft()
                 }
