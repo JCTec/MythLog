@@ -40,7 +40,7 @@ public enum TimelineCategory: String, CaseIterable, Identifiable, Codable, Senda
         case .app: "app.fill"
         case .file: "doc.text.fill"
         case .notification: "bell.badge.fill"
-        case .agent: "waveform.path.ecg"
+        case .agent: "gearshape.fill"
         case .log: "terminal.fill"
         case .ledger: "link"
         case .custom: "tag.fill"

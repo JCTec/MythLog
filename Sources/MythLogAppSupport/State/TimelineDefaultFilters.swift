@@ -19,7 +19,7 @@ extension TimelineFilterDefinition {
             id: "builtin.notifications", title: "Notify", symbolName: "bell.badge.fill", color: .notification,
             match: TimelineFilterMatch(category: .notification), defaultState: .normal, isBuiltIn: true),
         TimelineFilterDefinition(
-            id: "builtin.agent", title: "Agent", symbolName: "waveform.path.ecg", color: .agent,
+            id: "builtin.agent", title: "Agent", symbolName: "gearshape.fill", color: .agent,
             match: TimelineFilterMatch(category: .agent), defaultState: .hidden, isBuiltIn: true),
         TimelineFilterDefinition(
             id: "builtin.logs", title: "Logs", symbolName: "terminal.fill", color: .log,
