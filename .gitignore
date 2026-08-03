@@ -8,3 +8,9 @@ dist/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Local signing/notarization credentials. Never commit — this repository is public.
+Apple.md
+*.p12
+*.mobileprovision
+*.provisionprofile
