@@ -4,6 +4,9 @@ struct TimelineEventLabel: View {
     let displayRecord: TimelineDisplayRecord
     let selected: Bool
 
+    // Not private: that would make the synthesized memberwise initializer private too.
+    var space = ScaledSpacing()
+
     @ScaledMetric(relativeTo: .caption) private var labelWidth: CGFloat = 172
     @ScaledMetric(relativeTo: .caption2) private var categoryDotSize: CGFloat = 4
 
@@ -27,8 +30,8 @@ struct TimelineEventLabel: View {
             .foregroundStyle(.secondary)
             .lineLimit(1)
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
+        .padding(.horizontal, space.fixed(9))
+        .padding(.vertical, space.fixed(6))
         .frame(width: labelWidth, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: AppRadius.control))
         .overlay {

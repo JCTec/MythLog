@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct EmptyTimelineState: View {
+    private var space = ScaledSpacing()
+
     @ScaledMetric(relativeTo: .largeTitle) private var glyphSize: CGFloat = 28
 
     var body: some View {
@@ -14,7 +16,7 @@ struct EmptyTimelineState: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(18)
+        .padding(space.fixed(18))
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: AppRadius.control))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("No events in this range. Change the time window or category filters.")

@@ -4,6 +4,9 @@ struct CategoryFilterTip: View {
     let filter: TimelineFilterDefinition
     let state: CategoryDisplayState
 
+    // Not private: that would make the synthesized memberwise initializer private too.
+    var space = ScaledSpacing()
+
     @ScaledMetric(relativeTo: .caption) private var glyphSize: CGFloat = 12
     @ScaledMetric(relativeTo: .caption) private var glyphColumnWidth: CGFloat = 15
     @ScaledMetric(relativeTo: .caption2) private var stateDotSize: CGFloat = 6
@@ -34,8 +37,8 @@ struct CategoryFilterTip: View {
                     .lineLimit(1)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.horizontal, space.fixed(10))
+        .padding(.vertical, space.sm)
         .frame(width: tipWidth, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: AppRadius.control))
         .overlay {

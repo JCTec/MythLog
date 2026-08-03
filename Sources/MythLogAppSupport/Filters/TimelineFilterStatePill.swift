@@ -5,6 +5,9 @@ struct TimelineFilterStatePill: View {
     let state: CategoryDisplayState
     let action: () -> Void
 
+    // Not private: that would make the synthesized memberwise initializer private too.
+    var space = ScaledSpacing()
+
     var body: some View {
         Button(state.settingsLabel) {
             action()
@@ -12,8 +15,8 @@ struct TimelineFilterStatePill: View {
         .buttonStyle(.plain)
         .font(.caption.weight(.semibold))
         .foregroundStyle(state.indicatorColor(for: filter))
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
+        .padding(.horizontal, space.sm)
+        .padding(.vertical, space.fixed(5))
         .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
         .disabled(!filter.isEnabled)
         .accessibilityLabel(Text("\(filter.title) visibility"))

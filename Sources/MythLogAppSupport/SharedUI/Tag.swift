@@ -4,6 +4,8 @@ struct Tag: View {
     let title: String
     let color: Color
 
+    private var space = ScaledSpacing()
+
     init(_ title: String, color: Color) {
         self.title = title
         self.color = color
@@ -12,8 +14,8 @@ struct Tag: View {
     var body: some View {
         Text(title)
             .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 4)
+            .padding(.horizontal, space.fixed(7))
+            .padding(.vertical, space.xs)
             .foregroundStyle(color == .secondary ? Color.secondary : Color.white)
             .background(
                 Capsule()

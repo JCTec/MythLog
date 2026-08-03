@@ -11,6 +11,8 @@ struct AgentHealthPill: View {
     @State private var showingDetails = false
     @State private var showsHealthyTitle = true
     @State private var collapseTask: Task<Void, Never>?
+    // Not private: that would make the synthesized memberwise initializer private too.
+    var space = ScaledSpacing()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @ScaledMetric(relativeTo: .caption) private var glyphSize: CGFloat = 9
@@ -39,8 +41,8 @@ struct AgentHealthPill: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 6)
+            .padding(.horizontal, space.fixed(9))
+            .padding(.vertical, space.fixed(6))
             .background(
                 Color(nsColor: .controlBackgroundColor),
                 in: RoundedRectangle(cornerRadius: AppRadius.control)
