@@ -39,11 +39,14 @@ struct MythLogProofService: Sendable {
 
     private static func proofContext(launchAgentLabel: String) throws -> ProofContext {
         let paths = MythLogInstallationPaths(label: launchAgentLabel)
+        // installedDefault, not MythLogConfig(): the bare default's tilde paths
+        // resolve outside the App Group container under the sandbox, so proof
+        // export would read a different (empty) ledger than the recorder writes.
         let config =
             if FileManager.default.fileExists(atPath: paths.configURL.path) {
                 try MythLogConfig.load(from: paths.configURL)
             } else {
-                MythLogConfig()
+                MythLogConfig.installedDefault(paths: paths)
             }
         let secretStore = FileSecretStore.installedStore(for: config)
         guard let hmacKey = try secretStore.readSecret(account: config.secrets.hmacKeyAccount) else {

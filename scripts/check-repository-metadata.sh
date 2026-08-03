@@ -58,6 +58,7 @@ required_executables=(
   "scripts/check-swiftui-background-tasks.sh"
   "scripts/check-swiftui-main-thread-io.sh"
   "scripts/check-swiftui-store-boundaries.sh"
+  "scripts/check-container-path-resolution.sh"
   "scripts/package-release.sh"
   "scripts/run-viewer-debug.sh"
   "scripts/verify-release.sh"

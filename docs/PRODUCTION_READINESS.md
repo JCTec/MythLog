@@ -42,8 +42,8 @@ Artifacts:
 dist/
   MythLog.app
   INSTALLER.md
-  MythLog-1.0.0.zip
-  MythLog-1.0.0.zip.sha256
+  MythLog-1.0.1.zip
+  MythLog-1.0.1.zip.sha256
 ```
 
 The zip archive is app-only. `INSTALLER.md` is emitted beside the archive for
@@ -74,8 +74,8 @@ Additional artifacts:
 
 ```text
 dist/
-  MythLog-1.0.0.dmg
-  MythLog-1.0.0.dmg.sha256
+  MythLog-1.0.1.dmg
+  MythLog-1.0.1.dmg.sha256
 ```
 
 The app is ad-hoc signed by default. For a Developer ID signed build:
@@ -111,7 +111,7 @@ MYTHLOG_NOTARY_PROFILE=MythLogNotary \
 
 ## Install From DMG
 
-1. Open `dist/MythLog-1.0.0.dmg`.
+1. Open `dist/MythLog-1.0.1.dmg`.
 2. Drag `MythLog.app` to Applications.
 3. Open `MythLog.app` from Applications.
 4. Use the in-app setup banner or choose `Recorder > Install Recorder at Login...`.
@@ -174,8 +174,8 @@ Those require a later privileged LaunchDaemon or helper, and that should be desi
 - `./scripts/audit-distribution.sh`
 - `plutil -lint dist/MythLog.app/Contents/Info.plist`
 - `codesign --verify --deep --strict dist/MythLog.app`
-- `hdiutil imageinfo dist/MythLog-1.0.0.dmg`
-- `shasum -a 256 -c dist/MythLog-1.0.0.dmg.sha256`
+- `hdiutil imageinfo dist/MythLog-1.0.1.dmg`
+- `shasum -a 256 -c dist/MythLog-1.0.1.dmg.sha256`
 - Confirm the release gate smoke-tested packaged helper binaries and `mythlogctl`
 - Open the DMG, drag `MythLog.app` to Applications, then open it from Applications
 - Install the recorder from the in-app setup banner or `Recorder > Install Recorder at Login...`

@@ -61,7 +61,11 @@ final class TimelineStore: ObservableObject {
     let preferences: TimelinePreferences
 
     init(
-        ledgerURL: URL = PathResolver.fileURL(MythLogConfig().storage.ledgerPath),
+        // Resolved through InstalledConfiguration, not MythLogConfig(): under the
+        // App Sandbox the recorder appends to the ledger in the App Group
+        // container, while MythLogConfig()'s tilde default expands to this app's
+        // own private container, where the timeline would read an empty ledger.
+        ledgerURL: URL = InstalledConfiguration.ledgerURL(),
         preferences: TimelinePreferences = TimelinePreferences()
     ) {
         let filters = preferences.loadTimelineFilters()

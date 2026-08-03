@@ -45,8 +45,8 @@ targets:
         # these via $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION). Bump the
         # build here (not in Xcode's UI, which xcodegen overwrites) then
         # `xcodegen generate`.
-        MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "3"
+        MARKETING_VERSION: "1.0.1"
+        CURRENT_PROJECT_VERSION: "4"
         ENABLE_HARDENED_RUNTIME: YES
         # Automatic signing for local + Archive / App Store Connect upload.
         CODE_SIGN_STYLE: Automatic

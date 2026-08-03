@@ -35,10 +35,10 @@ Expected artifacts:
 
 ```text
 dist/MythLog.app
-dist/MythLog-1.0.0.zip
-dist/MythLog-1.0.0.zip.sha256
-dist/MythLog-1.0.0.dmg
-dist/MythLog-1.0.0.dmg.sha256
+dist/MythLog-1.0.1.zip
+dist/MythLog-1.0.1.zip.sha256
+dist/MythLog-1.0.1.dmg
+dist/MythLog-1.0.1.dmg.sha256
 dist/INSTALLER.md
 ```
 

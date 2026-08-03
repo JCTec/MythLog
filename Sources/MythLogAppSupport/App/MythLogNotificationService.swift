@@ -70,7 +70,9 @@ struct MythLogNotificationService: Sendable {
         guard FileManager.default.fileExists(atPath: paths.configURL.path),
             let config = try? MythLogConfig.load(from: paths.configURL)
         else {
-            return MythLogConfig()
+            // installedDefault, not MythLogConfig(): the bare default's tilde
+            // paths resolve outside the App Group container under the sandbox.
+            return MythLogConfig.installedDefault(paths: paths)
         }
 
         return config

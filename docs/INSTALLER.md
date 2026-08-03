@@ -26,8 +26,8 @@ This creates:
 ```text
 dist/MythLog.app
 dist/INSTALLER.md
-dist/MythLog-1.0.0.zip
-dist/MythLog-1.0.0.zip.sha256
+dist/MythLog-1.0.1.zip
+dist/MythLog-1.0.1.zip.sha256
 ```
 
 The zip is intentionally app-only. `dist/INSTALLER.md` is written beside the
@@ -47,8 +47,8 @@ for headless CI packaging.
 This creates:
 
 ```text
-dist/MythLog-1.0.0.dmg
-dist/MythLog-1.0.0.dmg.sha256
+dist/MythLog-1.0.1.dmg
+dist/MythLog-1.0.1.dmg.sha256
 ```
 
 The DMG contents are intentionally limited to:
@@ -69,7 +69,7 @@ MYTHLOG_NOTARY_PROFILE=MythLogNotary \
 
 ## Install
 
-1. Open `dist/MythLog-1.0.0.dmg`.
+1. Open `dist/MythLog-1.0.1.dmg`.
 2. Drag `MythLog.app` to `Applications`.
 3. Open `MythLog.app` from Applications.
 4. Use the in-app setup banner or choose `Recorder > Install Recorder at Login...`.

@@ -13,8 +13,12 @@ final class AgentHealthStore: ObservableObject {
     private var refreshTask: Task<Void, Never>?
 
     init(
-        statusURL: URL = PathResolver.fileURL(MythLogConfig().storage.runtimeDirectory)
-            .appendingPathComponent("status.json"),
+        // Resolved through InstalledConfiguration, not MythLogConfig(): under the
+        // App Sandbox the recorder writes status.json into the App Group
+        // container, while MythLogConfig()'s tilde default expands to this app's
+        // own private container. Reading the wrong one looks identical to "no
+        // status file yet", i.e. "Recorder Not Running" forever.
+        statusURL: URL = InstalledConfiguration.statusURL(),
         refreshInterval: TimeInterval = 5
     ) {
         self.statusURL = statusURL

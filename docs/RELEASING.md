@@ -73,7 +73,7 @@ macOS session so Finder automation can actually run.
 
 ```sh
 MYTHLOG_DISTRIBUTION=developer-id \
-MYTHLOG_VERSION=1.0.0 \
+MYTHLOG_VERSION=1.0.1 \
 MYTHLOG_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
 MYTHLOG_NOTARIZE=1 \
 MYTHLOG_NOTARY_PROFILE=MythLogNotary \
@@ -83,7 +83,7 @@ MYTHLOG_NOTARY_PROFILE=MythLogNotary \
 Then audit the result:
 
 ```sh
-MYTHLOG_VERSION=1.0.0 ./scripts/audit-distribution.sh
+MYTHLOG_VERSION=1.0.1 ./scripts/audit-distribution.sh
 ```
 
 Expect `Public distribution readiness: PASS`, a stapled notarization ticket, and
@@ -92,10 +92,10 @@ Expect `Public distribution readiness: PASS`, a stapled notarization ticket, and
 Artifacts land in `dist/` (gitignored):
 
 ```text
-dist/MythLog-1.0.0.dmg
-dist/MythLog-1.0.0.dmg.sha256
-dist/MythLog-1.0.0.zip
-dist/MythLog-1.0.0.zip.sha256
+dist/MythLog-1.0.1.dmg
+dist/MythLog-1.0.1.dmg.sha256
+dist/MythLog-1.0.1.zip
+dist/MythLog-1.0.1.zip.sha256
 dist/MythLog.app
 ```
 
@@ -108,7 +108,7 @@ builds are uploaded through Xcode/Transporter, not through these scripts.
 ## Version numbers
 
 `MYTHLOG_VERSION` threads the version through both packaging scripts and
-defaults to `1.0.0`. Keep it in sync with `MARKETING_VERSION` in `project.yml`.
+defaults to `1.0.1`. Keep it in sync with `MARKETING_VERSION` in `project.yml`.
 
 ## Tagging
 
@@ -116,8 +116,8 @@ Tags are still worth cutting for your own history even without a release
 pipeline attached to them:
 
 ```sh
-git tag -a v1.0.0 -m "MythLog 1.0.0"
-git push origin v1.0.0
+git tag -a v1.0.1 -m "MythLog 1.0.1"
+git push origin v1.0.1
 ```
 
 Never move or re-point a published tag; cut a new patch version instead.

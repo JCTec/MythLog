@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-VERSION="${MYTHLOG_VERSION:-1.0.0}"
+VERSION="${MYTHLOG_VERSION:-1.0.1}"
 LOGIN_ITEM_BUNDLE_ID="${MYTHLOG_LOGIN_ITEM_BUNDLE_ID:-com.jctec.mythlog.recorder}"
 DIST_DIR="$ROOT_DIR/dist"
 APP_DIR="$DIST_DIR/MythLog.app"
@@ -83,6 +83,9 @@ section "Checking SwiftUI AppKit boundary policy"
 
 section "Checking SwiftUI store boundary policy"
 ./scripts/check-swiftui-store-boundaries.sh
+
+section "Checking container path resolution"
+./scripts/check-container-path-resolution.sh
 
 section "Building debug products"
 swift build -c debug
