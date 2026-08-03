@@ -4,10 +4,12 @@ MythLog releases are built **locally on a Mac**. Signing and notarization run
 against the Developer ID certificate and notarytool keychain profile on the
 release machine.
 
-CI (`.github/workflows/ci.yml`) runs the gate suite and uploads a **test build**
-for the branch or PR. It builds the `developer-id` (unsandboxed) shape so it is
-actually launchable, but it is ad-hoc signed and unnotarized, so Gatekeeper
-refuses it until you clear the quarantine flag:
+CI (`.github/workflows/ci.yml`) runs the gate suite on every branch push and pull
+request. On a `v*.*.*` **tag** it additionally packages a DMG and publishes a
+**GitHub Release** — marked prerelease — with the DMG, zip, and checksums
+attached and the version taken from the tag. It builds the `developer-id`
+(unsandboxed) shape so it is actually launchable, but it is ad-hoc signed and
+unnotarized, so Gatekeeper refuses it until you clear the quarantine flag:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/MythLog.app
