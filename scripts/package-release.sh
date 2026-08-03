@@ -179,8 +179,30 @@ cp "$ROOT_DIR/docs/INSTALLER.md" "$DIST_DIR/INSTALLER.md"
 section "Code signing"
 if command -v codesign >/dev/null 2>&1; then
   SIGN_IDENTITY="${MYTHLOG_SIGN_IDENTITY:--}"
-  APP_ENTITLEMENTS="$ROOT_DIR/Xcode/MythLog.entitlements"
-  HELPER_ENTITLEMENTS="$ROOT_DIR/Xcode/MythLogHelper.entitlements"
+  # Which distribution channel's entitlements to sign with.
+  #
+  #   appstore     (default) sandboxed, App Group + iCloud container. Needs an
+  #                embedded provisioning profile, which only App Store and
+  #                Development channels have.
+  #   developer-id unsandboxed, for the direct-download DMG. Signing the App
+  #                Store entitlements with a Developer ID certificate and no
+  #                profile gets the binaries SIGKILLed on launch.
+  DISTRIBUTION="${MYTHLOG_DISTRIBUTION:-appstore}"
+  case "$DISTRIBUTION" in
+    appstore)
+      APP_ENTITLEMENTS="$ROOT_DIR/Xcode/MythLog.entitlements"
+      HELPER_ENTITLEMENTS="$ROOT_DIR/Xcode/MythLogHelper.entitlements"
+      ;;
+    developer-id)
+      APP_ENTITLEMENTS="$ROOT_DIR/Xcode/MythLog.DeveloperID.entitlements"
+      HELPER_ENTITLEMENTS="$ROOT_DIR/Xcode/MythLogHelper.DeveloperID.entitlements"
+      ;;
+    *)
+      echo "Unknown MYTHLOG_DISTRIBUTION: $DISTRIBUTION (expected appstore or developer-id)" >&2
+      exit 1
+      ;;
+  esac
+  echo "Entitlements profile: $DISTRIBUTION"
   CODESIGN_ARGS=(--force --sign "$SIGN_IDENTITY")
   if [[ "$SIGN_IDENTITY" != "-" ]]; then
     CODESIGN_ARGS+=(--options runtime --timestamp)

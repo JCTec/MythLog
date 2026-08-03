@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Helper entitlements for the Developer ID (direct-download DMG) build:
+  mythlog-agent, mythlogctl, and the bundled login item.
+
+  Same reasoning as MythLog.DeveloperID.entitlements — unsandboxed, so no App
+  Group and no iCloud container, both of which need a provisioning profile that
+  does not exist for the Developer ID channel.
+
+  MythLogHelper.entitlements remains the App Store shape and is unchanged.
+-->
+<plist version="1.0">
+<dict>
+	<!-- mythlogctl runs the notification test, which spawns osascript when unsandboxed. -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+</dict>
+</plist>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements for the Developer ID (direct-download DMG) build.
+
+  Deliberately unsandboxed. App Sandbox is not required for Developer ID
+  distribution, and the sandboxed entitlements in MythLog.entitlements — the App
+  Group container and the iCloud ubiquity container — must be authorized by an
+  embedded provisioning profile that only exists for App Store and Development
+  channels. Signing those entitlements with a Developer ID certificate and no
+  profile gets the binaries SIGKILLed on launch.
+
+  Nothing is lost by dropping them here. AnchorDestination resolves iCloud
+  anchors through the plain CloudDocs folder when unsandboxed
+  (~/Library/Mobile Documents/com~apple~CloudDocs/MythLog), and the ledger lives
+  in ~/Library/Application Support/MythLog rather than a group container.
+
+  MythLog.entitlements remains the App Store shape and is unchanged.
+-->
+<plist version="1.0">
+<dict>
+	<!--
+	  Hardened runtime is required for notarization. The AppleScript notification
+	  fallback in Notifiers.swift spawns /usr/bin/osascript, which is only reachable
+	  on the unsandboxed path — so it is live in this build and needs the Apple
+	  Events exception it never needed in the sandboxed one.
+	-->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+</dict>
+</plist>

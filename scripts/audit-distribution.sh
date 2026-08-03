@@ -63,12 +63,21 @@ signature_flags() {
 assess_gatekeeper() {
   local type="$1"
   local target="$2"
-  if spctl --assess --type "$type" -vv "$target" >/tmp/macal-spctl.out 2>&1; then
-    pass "Gatekeeper assessment accepted $target"
-  else
-    warn "Gatekeeper assessment did not accept $target: $(tr '\n' ' ' </tmp/macal-spctl.out)"
+  local out
+  out="$(mktemp -t mythlog-spctl)"
+  local args=(--assess --type "$type" -vv)
+  # Assessing a disk image needs an explicit context. Without it spctl reports
+  # "rejected source=Insufficient Context" for every DMG, notarized or not, which
+  # made a correctly stapled build look like a failure.
+  if [[ "$type" == "open" ]]; then
+    args+=(--context context:primary-signature)
   fi
-  rm -f /tmp/macal-spctl.out
+  if spctl "${args[@]}" "$target" >"$out" 2>&1; then
+    pass "Gatekeeper assessment accepted $target: $(tr '\n' ' ' <"$out")"
+  else
+    warn "Gatekeeper assessment did not accept $target: $(tr '\n' ' ' <"$out")"
+  fi
+  rm -f "$out"
 }
 
 detach_if_needed() {
