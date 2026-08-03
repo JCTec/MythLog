@@ -58,10 +58,8 @@ required_executables=(
   "scripts/check-swiftui-background-tasks.sh"
   "scripts/check-swiftui-main-thread-io.sh"
   "scripts/check-swiftui-store-boundaries.sh"
-  "scripts/Install MythLog.command"
   "scripts/package-release.sh"
   "scripts/run-viewer-debug.sh"
-  "scripts/Uninstall MythLog.command"
   "scripts/verify-release.sh"
   "scripts/check-repository-metadata.sh"
 )

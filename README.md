@@ -8,8 +8,6 @@
 
 <p align="center">
   <a href="https://github.com/JCTec/MythLog/actions/workflows/ci.yml"><img src="https://github.com/JCTec/MythLog/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/JCTec/MythLog/releases/latest"><img src="https://img.shields.io/github/v/release/JCTec/MythLog?sort=semver&label=release" alt="Latest release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Personal%20Use-blue.svg" alt="License: Personal Use"></a>
   <img src="https://img.shields.io/badge/macOS-14%2B-black?logo=apple&logoColor=white" alt="macOS 14+">
   <img src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white" alt="Swift 6">
 </p>
@@ -18,13 +16,12 @@ MythLog is a consent-first macOS security event recorder and timeline viewer, wr
 
 ## Install
 
-Grab the latest build from **[Releases](https://github.com/JCTec/MythLog/releases/latest)**:
+1. **Open** `MythLog-<version>.dmg` and drag `MythLog.app` to your Applications folder.
+2. **Launch** MythLog, choose **Recorder → Install Recorder at Login…**, and approve macOS Background Items if prompted.
 
-1. **Download** `MythLog-<version>.dmg`.
-2. **Open** it and drag `MythLog.app` to your Applications folder.
-3. **Launch** MythLog, choose **Recorder → Install Recorder at Login…**, and approve macOS Background Items if prompted.
+The DMG is intentionally drag-only — setup lives inside the app, not in the DMG.
 
-The DMG is intentionally drag-only — setup lives inside the app, not in the DMG. Unsigned/prerelease builds are marked as such in their release notes. To build locally instead, see [Contributing](https://github.com/JCTec/MythLog/wiki/Contributing).
+Builds are produced locally with `./scripts/package-dmg.sh`; see [Releasing](docs/RELEASING.md).
 
 ## What It Does Not Record
 
@@ -52,19 +49,19 @@ Any contribution that changes those boundaries should be treated as a security/d
 
 ## Documentation
 
-Full documentation lives in the **[Wiki](https://github.com/JCTec/MythLog/wiki)** (synced automatically from `docs/`, which remains the source of truth):
+Full documentation lives in [`docs/`](docs/):
 
 | Page | What it covers |
 | --- | --- |
-| [Architecture](https://github.com/JCTec/MythLog/wiki/Architecture) | Package layout, ledger, spool transport, and boundaries |
-| [Security Model](https://github.com/JCTec/MythLog/wiki/Security-Model) | Threat model, HMAC hash chain, and hash anchoring |
-| [Sandbox Behavior](https://github.com/JCTec/MythLog/wiki/Sandbox-Behavior) | Per-feature sandboxed vs unsandboxed behavior |
-| [Custom Events](https://github.com/JCTec/MythLog/wiki/Custom-Events) | Emitting events from scripts and tools |
-| [Accessibility](https://github.com/JCTec/MythLog/wiki/Accessibility) | VoiceOver, Dynamic Type, keyboard, color, and known gaps |
-| [Installer](https://github.com/JCTec/MythLog/wiki/Installer) | Recorder install/login-item flow |
-| [Uninstall](https://github.com/JCTec/MythLog/wiki/Uninstall) | Removing MythLog and its local data |
-| [Contributing](https://github.com/JCTec/MythLog/wiki/Contributing) | Building, testing, and the release flow |
+| [Architecture](docs/ARCHITECTURE.md) | Package layout, ledger, spool transport, and boundaries |
+| [Security Model](docs/SECURITY_MODEL.md) | Threat model, HMAC hash chain, and hash anchoring |
+| [Sandbox Behavior](docs/SANDBOX_BEHAVIOR.md) | Per-feature sandboxed vs unsandboxed behavior |
+| [Custom Events](docs/CUSTOM_EVENTS.md) | Emitting events from scripts and tools |
+| [Accessibility](docs/ACCESSIBILITY.md) | VoiceOver, Dynamic Type, keyboard, color, and known gaps |
+| [Installer](docs/INSTALLER.md) | Recorder install/login-item flow |
+| [Uninstall](docs/UNINSTALL.md) | Removing MythLog and its local data |
+| [Releasing](docs/RELEASING.md) | Building, signing, notarizing, and packaging a release |
 
 ## License
 
-MythLog's source is available under the [MythLog Personal Use License](LICENSE): you may copy and modify it for your own personal, non-commercial use, but you may not redistribute it or use it to offer a product or service to others. See the LICENSE file for the exact terms.
+MythLog is proprietary software. See the [LICENSE](LICENSE) file for terms; use of the compiled app is governed by the Mac App Store Terms and Conditions where applicable.

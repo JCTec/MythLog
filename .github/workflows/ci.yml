@@ -20,6 +20,23 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 60
 
+    env:
+      # Build the unsandboxed Developer ID shape so the uploaded artifact is
+      # actually launchable. The App Store shape (App Sandbox + App Group +
+      # iCloud container) needs a provisioning profile to authorize those
+      # entitlements; CI signs ad-hoc and has no profile, so a sandboxed build
+      # here gets SIGKILLed the moment you open it — the artifact would exist
+      # but could never be installed.
+      #
+      # Set at job level, not on the packaging step: verify-release.sh runs
+      # package-release.sh internally, and the packaging step below reuses that
+      # app via MYTHLOG_SKIP_RELEASE_BUILD=1. Setting it only there would be
+      # silently ignored.
+      #
+      # Trade-off: CI no longer exercises the App Store entitlements. Those are
+      # validated when archiving through Xcode and at submission.
+      MYTHLOG_DISTRIBUTION: developer-id
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -48,9 +65,14 @@ jobs:
           ./scripts/package-dmg.sh
           ./scripts/audit-distribution.sh
 
-      - name: Upload Local Artifacts
-        # Release-branch runs are gate-only; artifacts come from the tagged
-        # Release workflow.
+      - name: Upload Test Build
+        # Unsandboxed, ad-hoc signed, unnotarized. Installable for your own
+        # testing — Gatekeeper will refuse it until you right-click > Open or
+        # run: xattr -dr com.apple.quarantine /Applications/MythLog.app
+        #
+        # Not a distribution channel. Anything handed to another person is built,
+        # signed with the Developer ID certificate, and notarized locally; see
+        # docs/RELEASING.md. Release-branch runs stay gate-only.
         if: ${{ !startsWith(github.ref, 'refs/heads/release/') }}
         uses: actions/upload-artifact@v7
         with:

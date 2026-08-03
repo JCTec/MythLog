@@ -1,75 +1,121 @@
 # Releasing
 
-MythLog releases are cut from a **release branch**, published by **tagging**, and
-built by the [`Release`](../.github/workflows/release.yml) workflow. `docs/` stays
-the source of truth; this page documents the flow.
+MythLog releases are built **locally on a Mac**. Signing and notarization run
+against the Developer ID certificate and notarytool keychain profile on the
+release machine.
 
-## Branch and tag model
-
-1. **Stabilize on a release branch.** Branch `release/x.y` from `main` when a
-   minor version is ready to harden:
-   ```sh
-   git switch main && git pull
-   git switch -c release/1.2
-   git push -u origin release/1.2
-   ```
-   Every push to `release/**` runs the **full CI gate suite** (metadata, format,
-   the four SwiftUI checks, tests, `verify-release.sh`, DMG packaging, and the
-   distribution audit) with **no uploaded artifacts** — it is a quality gate, not
-   a build product.
-
-2. **Tag from the release branch.** When the branch is green, tag the exact
-   commit `vX.Y.Z` (annotated) and push the tag:
-   ```sh
-   git tag -a v1.2.0 -m "MythLog 1.2.0"
-   git push origin v1.2.0
-   ```
-   The tag (`v*.*.*`) triggers the `Release` workflow.
-
-3. **Hotfixes are cherry-picked.** Land the fix on `main` first, then cherry-pick
-   it onto the affected `release/x.y` branch and tag a new patch (`vX.Y.Z+1`):
-   ```sh
-   git switch release/1.2
-   git cherry-pick <sha-from-main>
-   git push
-   git tag -a v1.2.1 -m "MythLog 1.2.1" && git push origin v1.2.1
-   ```
-
-4. **Tags are immutable.** Never move or re-point a published tag. If a build is
-   bad, tag a new patch version. (Re-pushing the *same* tag before a run finishes
-   only cancels the stale run via the workflow's concurrency group — do not rely
-   on it to replace a published release.)
-
-## What the Release workflow does
-
-Triggered by a `v*.*.*` tag on a `macos-14` runner:
-
-1. **Derives the version** from the tag (`v1.2.0` → `1.2.0`) and threads it through
-   `package-release.sh` / `package-dmg.sh` via the `MYTHLOG_VERSION` env override
-   (default `1.0.0` for local runs).
-2. **Runs the full gate suite** (`verify-release.sh`, `package-dmg.sh`,
-   `audit-distribution.sh`).
-3. **Signs and notarizes when secrets are present.** If `MYTHLOG_CERT_P12`,
-   `MYTHLOG_CERT_PASSWORD`, `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID`, and
-   `NOTARY_KEY_P8` are configured, it imports the Developer ID certificate into a
-   throwaway keychain, signs the app + DMG with hardened runtime, notarizes the
-   DMG with `notarytool` (App Store Connect API key), staples the ticket, and
-   verifies with `spctl`.
-4. **Falls back to an unsigned prerelease** when those secrets are absent: an
-   ad-hoc build is published as a **prerelease** whose notes begin with
-   `UNSIGNED BUILD — for testing only`.
-5. **Publishes a GitHub Release** from the tag with auto-generated notes and
-   attaches `MythLog-<version>.dmg` and its `.sha256`.
-
-See [HUMAN_CHECKLIST-GITHUB.md](../HUMAN_CHECKLIST-GITHUB.md) for the one-time
-setup of the signing/notary secrets and tag protection.
-
-## Local dry run
-
-Version threading can be exercised locally without a full build:
+CI (`.github/workflows/ci.yml`) runs the gate suite and uploads a **test build**
+for the branch or PR. It builds the `developer-id` (unsandboxed) shape so it is
+actually launchable, but it is ad-hoc signed and unnotarized, so Gatekeeper
+refuses it until you clear the quarantine flag:
 
 ```sh
-MYTHLOG_VERSION=9.9.9 MYTHLOG_SKIP_RELEASE_BUILD=1 \
-  MYTHLOG_DMG_FINDER_LAYOUT=skip ./scripts/package-dmg.sh
-# -> dist/MythLog-9.9.9.dmg
+xattr -dr com.apple.quarantine /Applications/MythLog.app
 ```
+
+That build is for your own testing only — it is not something to hand to another
+person. Everything below is the real release path.
+
+Two distribution channels are produced from the same source, selected with
+`MYTHLOG_DISTRIBUTION`:
+
+| Channel | Value | Shape |
+| --- | --- | --- |
+| Mac App Store | `appstore` (default) | Sandboxed; App Group + iCloud ubiquity container. Requires an embedded provisioning profile. |
+| Direct download | `developer-id` | Unsandboxed; signed with the Developer ID certificate and notarized for distribution outside the App Store. |
+
+Signing the App Store entitlements with a Developer ID certificate produces
+binaries the kernel SIGKILLs on launch, because the App Group and iCloud
+container entitlements must be authorized by a provisioning profile that only
+the App Store and Development channels have. `MYTHLOG_DISTRIBUTION=developer-id`
+selects the unsandboxed entitlements instead
+(`Xcode/MythLog.DeveloperID.entitlements`).
+
+## Prerequisites
+
+- A **Developer ID Application** certificate in the login keychain.
+- A notarytool keychain profile:
+  ```sh
+  xcrun notarytool store-credentials MythLogNotary \
+    --apple-id you@example.com --team-id TEAMID
+  ```
+  The app-specific password used here is a credential — keep it out of the
+  repository (`.gitignore` already blocks `Apple.md`, `*.p12`, and provisioning
+  profiles).
+
+## Gate suite
+
+Run before packaging anything you intend to ship. The `MYTHLOG_DMG_FINDER_LAYOUT=skip`
+here is deliberate — this is a fast verification pass, and its DMG is a
+throwaway artifact, not a release build:
+
+```sh
+./scripts/check-repository-metadata.sh
+./scripts/check-format.sh
+./scripts/check-swiftui-appkit-boundaries.sh
+./scripts/check-swiftui-background-tasks.sh
+./scripts/check-swiftui-main-thread-io.sh
+./scripts/check-swiftui-store-boundaries.sh
+./scripts/verify-release.sh
+MYTHLOG_SKIP_RELEASE_BUILD=1 MYTHLOG_DMG_FINDER_LAYOUT=skip ./scripts/package-dmg.sh
+./scripts/audit-distribution.sh
+```
+
+## Building the direct-download DMG
+
+This is the artifact users install. It runs `package-dmg.sh` without
+`MYTHLOG_DMG_FINDER_LAYOUT=skip`, so it defaults to `required`: the styled
+Finder layout (background art, positioned icons) is built, and the script fails
+loudly rather than silently shipping a plain DMG. Run it from an interactive
+macOS session so Finder automation can actually run.
+
+```sh
+MYTHLOG_DISTRIBUTION=developer-id \
+MYTHLOG_VERSION=1.0.0 \
+MYTHLOG_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+MYTHLOG_NOTARIZE=1 \
+MYTHLOG_NOTARY_PROFILE=MythLogNotary \
+  ./scripts/package-dmg.sh
+```
+
+Then audit the result:
+
+```sh
+MYTHLOG_VERSION=1.0.0 ./scripts/audit-distribution.sh
+```
+
+Expect `Public distribution readiness: PASS`, a stapled notarization ticket, and
+`spctl` accepting both the DMG and the app as Notarized Developer ID.
+
+Artifacts land in `dist/` (gitignored):
+
+```text
+dist/MythLog-1.0.0.dmg
+dist/MythLog-1.0.0.dmg.sha256
+dist/MythLog-1.0.0.zip
+dist/MythLog-1.0.0.zip.sha256
+dist/MythLog.app
+```
+
+## Building for the Mac App Store
+
+Leave `MYTHLOG_DISTRIBUTION` at its default and archive through Xcode, which
+applies the sandboxed entitlements and the provisioning profile. App Store
+builds are uploaded through Xcode/Transporter, not through these scripts.
+
+## Version numbers
+
+`MYTHLOG_VERSION` threads the version through both packaging scripts and
+defaults to `1.0.0`. Keep it in sync with `MARKETING_VERSION` in `project.yml`.
+
+## Tagging
+
+Tags are still worth cutting for your own history even without a release
+pipeline attached to them:
+
+```sh
+git tag -a v1.0.0 -m "MythLog 1.0.0"
+git push origin v1.0.0
+```
+
+Never move or re-point a published tag; cut a new patch version instead.

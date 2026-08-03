@@ -55,6 +55,8 @@ done
 
 section "Creating app bundle"
 rm -rf "$APP_DIR"
+# Also clear the retired standalone .command installers from any dist/ left
+# over from an older build; recorder setup lives inside MythLog.app.
 rm -f \
   "$DIST_DIR/Install MythLog.command" \
   "$DIST_DIR/Uninstall MythLog.command" \

@@ -32,27 +32,25 @@ For the maintainer-facing public release pass, use [Release Checklist](docs/RELE
 
 ## Branches, tags, and releases
 
-- Day-to-day work lands on `main` via pull request; CI must be green.
-- Releases are stabilized on a `release/x.y` branch cut from `main`. Every push
-  to `release/**` runs the full CI gate suite (no artifacts).
-- A release is published by pushing an annotated tag `vX.Y.Z` from the release
-  branch; the [`Release`](.github/workflows/release.yml) workflow builds, signs +
-  notarizes (or produces an unsigned prerelease when signing secrets are absent),
-  and attaches the DMG to a GitHub Release.
-- Hotfixes land on `main` first, then are cherry-picked onto the affected
-  `release/x.y` branch and tagged as a new patch. **Tags are immutable** — never
-  move a published tag; cut a new patch instead.
+CI runs the gate suite on every push to `main` and on pull requests, and
+uploads ad-hoc signed convenience builds for testing. **Shipping builds are not
+produced by CI** — the release DMG is built, signed with the Developer ID
+certificate, and notarized locally on a Mac.
+
+- Day-to-day work lands on `main`; CI must be green.
+- A release is built locally with `./scripts/package-dmg.sh` and tagged
+  `vX.Y.Z`. **Tags are immutable** — never move a published tag; cut a new patch
+  instead.
 
 The full flow lives in [Releasing](docs/RELEASING.md).
 
 ## Documentation and the wiki
 
-`docs/` is the source of truth. The project [Wiki](https://github.com/JCTec/MythLog/wiki)
-is generated from `docs/**` (and this file) by the
-[`Wiki Sync`](.github/workflows/wiki-sync.yml) workflow on every push to `main` —
-edit the Markdown under `docs/`, not the wiki directly (direct wiki edits are
-overwritten). New docs appear automatically; add a nice sidebar title in
-`.github/scripts/build-wiki.py` if the derived one needs polish.
+`docs/` is the source of truth. The project Wiki is generated from `docs/**`
+(and this file) by the [`Wiki Sync`](.github/workflows/wiki-sync.yml) workflow on
+every push to `main` — edit the Markdown under `docs/`, not the wiki directly
+(direct wiki edits are overwritten). New docs appear automatically; add a nice
+sidebar title in `.github/scripts/build-wiki.py` if the derived one needs polish.
 
 ## Code Organization
 
