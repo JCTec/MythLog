@@ -10,6 +10,8 @@ struct TimelineCanvas: View {
     var events: [TimelineEvent]
     var window: TimelineWindow
     var gaps: [CoverageGap]
+    /// Where trustworthy history ends, when part of it does not verify.
+    var trustBoundary: TrustBoundary?
     var level: ZoomLevel
     var selected: TimelineEvent?
     var onSelect: (TimelineEvent) -> Void
@@ -20,6 +22,7 @@ struct TimelineCanvas: View {
             GeometryReader { geo in
                 ZStack(alignment: .topLeading) {
                     gapOverlays(width: geo.size.width, height: geo.size.height)
+                    untrustedOverlay(width: geo.size.width, height: geo.size.height)
 
                     switch level {
                     case .density: density(size: geo.size)
@@ -75,6 +78,36 @@ struct TimelineCanvas: View {
             .frame(width: w, height: height - Metrics.timelineAxisInset)
             .offset(x: x)
             .accessibilityLabel(gap.label)
+        }
+    }
+
+    /// The span of the timeline that cannot be trusted, and the line where it
+    /// begins.
+    ///
+    /// Drawn *under* the events, not over them: the point is that these records
+    /// are still there and still readable — they simply cannot be relied on.
+    /// Hiding or dimming them would answer a question nobody asked, and the
+    /// altered records are the ones a person most wants to look at.
+    ///
+    /// Everything after the boundary is untrusted, including records that have
+    /// not been written yet, so the region runs to the right-hand edge rather
+    /// than stopping at the last event.
+    @ViewBuilder
+    private func untrustedOverlay(width: CGFloat, height: CGFloat) -> some View {
+        if let trustBoundary, let at = trustBoundary.firstUntrustedAt {
+            let f = window.fraction(of: at)
+            if f < 1 {
+                let x = max(0, f) * width
+                ZStack(alignment: .leading) {
+                    Rectangle().fill(Palette.untrustedSpan)
+                    Rectangle()
+                        .fill(Palette.critical.opacity(0.8))
+                        .frame(width: 2)
+                }
+                .frame(width: width - x, height: height - Metrics.timelineAxisInset)
+                .offset(x: x)
+                .accessibilityHidden(true)
+            }
         }
     }
 

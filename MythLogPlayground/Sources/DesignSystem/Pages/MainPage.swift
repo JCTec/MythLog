@@ -34,6 +34,7 @@ struct MainPage: View {
                     events: model.visibleEvents,
                     window: model.window,
                     gaps: model.gaps,
+                    trustBoundary: model.trustBoundary,
                     level: model.level,
                     selected: model.selected,
                     onSelect: { model.selected = $0 },
@@ -41,17 +42,34 @@ struct MainPage: View {
                 )
             }
         } list: {
-            EventList(
-                events: model.visibleEvents,
-                window: model.window,
-                gaps: model.gaps,
-                selected: model.selected,
-                newEventTime: "14:37",
-                onSelect: { model.selected = $0 },
-                onJumpToNew: { model.selected = model.visibleEvents.last }
-            )
+            VStack(spacing: Metrics.space3) {
+                // Above the history it is about, never over it: "which records
+                // changed?" is answered by the list, not by a dialog covering it.
+                if model.integrity.needsBanner {
+                    IntegrityBanner(
+                        state: model.integrity,
+                        onPrimary: { Task { await model.reverify() } },
+                        onSecondary: {}
+                    )
+                }
+
+                EventList(
+                    events: model.visibleEvents,
+                    window: model.window,
+                    gaps: model.gaps,
+                    trustBoundary: model.trustBoundary,
+                    selected: model.selected,
+                    newEventTime: "14:37",
+                    onSelect: { model.selected = $0 },
+                    onJumpToNew: { model.selected = model.visibleEvents.last }
+                )
+            }
         } inspector: {
-            InspectorPanel(event: model.selected, integrity: model.integrity)
+            InspectorPanel(
+                event: model.selected,
+                integrity: model.integrity,
+                trustBoundary: model.trustBoundary
+            )
         }
         .frame(minWidth: 1240, minHeight: 820)
         // The load starts when the page appears and is cancelled with it, so

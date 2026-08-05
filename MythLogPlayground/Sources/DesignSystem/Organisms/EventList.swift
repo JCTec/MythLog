@@ -6,6 +6,8 @@ struct EventList: View {
     var events: [TimelineEvent]
     var window: TimelineWindow
     var gaps: [CoverageGap]
+    /// Where trustworthy history ends, when part of it does not verify.
+    var trustBoundary: TrustBoundary?
     var selected: TimelineEvent?
     var newEventTime: String?
     var onSelect: (TimelineEvent) -> Void
@@ -31,7 +33,17 @@ struct EventList: View {
                         CoverageGapBanner(gap: gap).padding(Metrics.space4)
                     }
                     ForEach(shown) { event in
-                        EventRow(event: event, isSelected: selected?.id == event.id) { onSelect(event) }
+                        // The list runs newest first, so the marker goes
+                        // immediately *before* the first row that is still
+                        // trustworthy — everything above it is not.
+                        if let trustBoundary, isFirstTrustedRow(event) {
+                            TrustBoundaryMarker(boundary: trustBoundary)
+                        }
+                        EventRow(
+                            event: event,
+                            isSelected: selected?.id == event.id,
+                            isTrusted: trustBoundary?.trusts(ordinal: event.record) ?? true
+                        ) { onSelect(event) }
                     }
                 }
             }
@@ -66,6 +78,15 @@ struct EventList: View {
         }
         .padding(.horizontal, Metrics.space4)
         .frame(height: 44)
+    }
+
+    /// The newest row that still verifies — the one the boundary sits above.
+    ///
+    /// Compared by identity rather than by index so the marker cannot drift if
+    /// the row ordering changes.
+    private func isFirstTrustedRow(_ event: TimelineEvent) -> Bool {
+        guard let trustBoundary else { return false }
+        return shown.first { trustBoundary.trusts(ordinal: $0.record) }?.id == event.id
     }
 
     /// Honest about truncation: never silently drops rows.

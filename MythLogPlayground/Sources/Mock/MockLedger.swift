@@ -152,12 +152,35 @@ struct MockTimelineSource: TimelineSource {
     /// ``CoverageAnalysis``.
     var gapWasGraceful: Bool
 
-    init(gapWasGraceful: Bool = false) {
+    /// The verification verdict to present.
+    ///
+    /// The fixture's records genuinely do verify — there is no real chain here
+    /// to break. This exists so the four integrity states are *reachable* for
+    /// design work and previews, which is the only way to judge whether a
+    /// failing ledger actually looks like one. Everything downstream treats it
+    /// exactly as it treats a verdict from a real ledger.
+    var integrity: IntegrityState
+
+    init(gapWasGraceful: Bool = false, integrity: IntegrityState? = nil) {
         self.gapWasGraceful = gapWasGraceful
+        self.integrity = integrity ?? .verified(recordCount: MockLedger.totalRecords)
     }
 
     var describedOrigin: String {
         "fixture (\(gapWasGraceful ? "graceful stop" : "force-quit"))"
+    }
+
+    /// A break two-thirds of the way through the fixture, so the boundary lands
+    /// somewhere a preview can actually see it — with trustworthy records above
+    /// and below the fold rather than at one extreme.
+    static var brokenChain: IntegrityState {
+        let events = MockLedger.events
+        let boundary = events[events.count * 2 / 3].record
+        return .failed(
+            lastTrustedOrdinal: boundary,
+            issueCount: events.count - (events.count * 2 / 3) - 1,
+            recordCount: MockLedger.totalRecords
+        )
     }
 
     func load(_ request: TimelineLoadRequest) async throws -> TimelineSnapshot {
@@ -180,7 +203,7 @@ struct MockTimelineSource: TimelineSource {
             totalRecords: MockLedger.totalRecords,
             omittedOlderRecords: MockLedger.totalRecords - events.count,
             firstRetainedAt: events.first?.at,
-            integrity: .verified(recordCount: MockLedger.totalRecords),
+            integrity: integrity,
             origin: describedOrigin
         )
     }

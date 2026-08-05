@@ -146,6 +146,12 @@ extension MainPage {
 
         // MARK: - Intent
 
+        /// Re-runs the load, which re-verifies. The banner's primary action on
+        /// every state but `.anchorOffline`.
+        func reverify() async {
+            await load()
+        }
+
         func toggle(_ kind: EventKind) {
             if enabledKinds.contains(kind) { enabledKinds.remove(kind) } else { enabledKinds.insert(kind) }
             refresh()
@@ -176,6 +182,12 @@ extension MainPage {
 
         var activePreset: String? {
             Self.presets.first { abs($0.span - window.span) < 60 }?.label
+        }
+
+        /// Where trustworthy history ends. Derived once, here, so the banner,
+        /// the list, the timeline, and the inspector cannot disagree about it.
+        var trustBoundary: TrustBoundary? {
+            TrustBoundary.resolve(integrity: integrity, events: snapshot.events)
         }
 
         var visibleEvents: [TimelineEvent] { derived.visibleEvents }

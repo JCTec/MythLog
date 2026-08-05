@@ -8,10 +8,23 @@ import SwiftUI
 struct InspectorPanel: View {
     var event: TimelineEvent?
     var integrity: IntegrityState
+    /// Where trustworthy history ends. Supplied rather than derived here so the
+    /// inspector, the list, and the timeline cannot disagree about it.
+    var trustBoundary: TrustBoundary?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.space4) {
             if let event {
+                // Above the event's own title, deliberately. An untrusted
+                // record's verdict is the most consequential thing on this
+                // panel and it used to be an 11pt caption at the bottom.
+                if !isTrusted(event) {
+                    TrustVerdictBadge(
+                        isTrusted: false,
+                        prominence: .banner,
+                        explanation: untrustedExplanation(event)
+                    )
+                }
                 header(event)
                 fields(event)
                 payload(event)
@@ -90,9 +103,7 @@ struct InspectorPanel: View {
                     .font(Typography.body)
                     .foregroundStyle(Palette.textPrimary)
                 Spacer()
-                Text(verdict(for: event))
-                    .font(Typography.caption)
-                    .foregroundStyle(isTrusted(event) ? Palette.accent : Palette.critical)
+                TrustVerdictBadge(isTrusted: isTrusted(event), prominence: .inline, explanation: nil)
             }
 
             Text("hmac \(event.hmacShort)")
@@ -112,15 +123,21 @@ struct InspectorPanel: View {
     /// It used to be `event.record <= 3200`, which was fine while the data was a
     /// fixture and would have been a lie about somebody's history.
     private func isTrusted(_ event: TimelineEvent) -> Bool {
-        switch integrity {
-        case .failed(let lastTrustedOrdinal, _, _): event.record <= lastTrustedOrdinal
-        case .unreadable: false
-        case .verified, .unverified, .truncated, .anchorOffline: true
-        }
+        trustBoundary?.trusts(ordinal: event.record) ?? true
     }
 
-    private func verdict(for event: TimelineEvent) -> String {
-        isTrusted(event) ? "Verified" : "Untrusted"
+    /// Says why this record is untrusted, in the terms that make it make sense:
+    /// not "this record is wrong" — it may be untouched — but "the chain broke
+    /// before it, so nothing after the break can be relied on".
+    private func untrustedExplanation(_ event: TimelineEvent) -> String {
+        guard let trustBoundary else { return "" }
+        if trustBoundary.nothingIsTrusted {
+            return "No record in this ledger verifies against the chain."
+        }
+        return "The chain breaks at #\(trustBoundary.firstUntrustedOrdinal.formatted()). "
+            + "This record sits after the break, so it cannot be relied on — even though its own hash is "
+            + "consistent with the record before it. Anyone able to alter #\(trustBoundary.firstUntrustedOrdinal.formatted()) "
+            + "could recompute every hash after it."
     }
 
     private var anchorLine: String {
