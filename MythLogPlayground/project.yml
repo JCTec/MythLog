@@ -1,0 +1,62 @@
+name: MythLog
+
+# Ground-up rebuild of MythLog: design system + visual implementation only.
+# Deliberately NOT a SwiftPM package — one macOS app target, no library targets,
+# so the design can be run, resized, and inspected directly.
+#
+#   brew install xcodegen        # one-time
+#   cd MythLogPlayground && xcodegen generate
+#   open MythLog.xcodeproj       # Cmd+R
+
+options:
+  bundleIdPrefix: com.jctec
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    # Swift 6 language mode implies complete checking; stated explicitly so it
+    # survives anyone lowering SWIFT_VERSION to unblock themselves.
+    SWIFT_STRICT_CONCURRENCY: complete
+
+targets:
+  MythLog:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources
+    scheme:
+      testTargets:
+        - MythLogEngineTests
+    settings:
+      base:
+        PRODUCT_NAME: MythLog
+        PRODUCT_BUNDLE_IDENTIFIER: com.jctec.mythlog.playground
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_STYLE: Automatic
+        # Design harness, not a shipping build.
+        ENABLE_APP_SANDBOX: NO
+
+  MythLogEngineTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Tests
+    dependencies:
+      - target: MythLog
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jctec.mythlog.playground.tests
+        GENERATE_INFOPLIST_FILE: YES
+        # Hosted by the app so `@testable import MythLog` reaches internal types.
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/MythLog.app/Contents/MacOS/MythLog"
+        BUNDLE_LOADER: "$(TEST_HOST)"
