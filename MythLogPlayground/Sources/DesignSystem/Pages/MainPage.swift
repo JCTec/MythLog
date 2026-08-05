@@ -2,15 +2,20 @@ import SwiftUI
 
 /// The template filled with mock data and wired to real interaction.
 struct MainPage: View {
-    @State private var model = Model()
+    @State private var model: Model
+
+    /// The data is injected, never reached for. See ``TimelineSnapshot``.
+    init(snapshot: TimelineSnapshot) {
+        _model = State(initialValue: Model(snapshot: snapshot))
+    }
 
     var body: some View {
         MainWindowTemplate {
             HeaderBar(
                 edition: "App Store edition",
                 integrity: model.integrity,
-                recordCount: MockLedger.totalRecords,
-                since: MockLedger.since,
+                recordCount: model.snapshot.totalRecords,
+                since: model.snapshot.since,
                 query: $model.query
             )
         } filters: {
@@ -27,7 +32,7 @@ struct MainPage: View {
                 TimelineCanvas(
                     events: model.visibleEvents,
                     window: model.window,
-                    gap: MockLedger.gap,
+                    gap: model.snapshot.gap,
                     level: model.level,
                     selected: model.selected,
                     onSelect: { model.selected = $0 },
@@ -38,7 +43,7 @@ struct MainPage: View {
             EventList(
                 events: model.visibleEvents,
                 window: model.window,
-                gap: MockLedger.gap,
+                gap: model.snapshot.gap,
                 selected: model.selected,
                 newEventTime: "14:37",
                 onSelect: { model.selected = $0 },
@@ -86,8 +91,8 @@ struct MainPage: View {
             Spacer()
 
             ZoomControls(
-                canZoomIn: model.window.span > TimelineWindow.minimumSpan,
-                canZoomOut: model.window.span < MockLedger.limit.upperBound.timeIntervalSince(MockLedger.limit.lowerBound),
+                canZoomIn: model.canZoomIn,
+                canZoomOut: model.canZoomOut,
                 onZoomIn: model.zoomIn,
                 onZoomOut: model.zoomOut,
                 presets: Model.presets,
@@ -96,8 +101,4 @@ struct MainPage: View {
             )
         }
     }
-}
-
-#Preview {
-    MainPage()
 }

@@ -96,3 +96,19 @@ enum MockLedger {
     static var totalRecords: Int { 5362 }
     static var since: String { "since Jun 12" }
 }
+
+extension MockLedger {
+    /// The mock as the interface consumes it. Kept behind the same
+    /// ``TimelineSnapshot`` the real loader produces, so previews and design work
+    /// stay deterministic without the page knowing a fixture exists.
+    static var snapshot: TimelineSnapshot {
+        TimelineSnapshot(
+            events: events,
+            gap: gap,
+            history: limit,
+            totalRecords: totalRecords,
+            since: since,
+            integrity: .verified
+        )
+    }
+}

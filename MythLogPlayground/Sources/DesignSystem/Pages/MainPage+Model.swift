@@ -9,29 +9,37 @@ extension MainPage {
     /// everything else from one source. It does not load data independently,
     /// because timeline, list, and counts disagreeing would be worse than any
     /// amount of verbosity in an app whose claim is a consistent record.
+    ///
+    /// The data arrives as a ``TimelineSnapshot`` from outside. The page has no
+    /// idea whether it came from a fixture or from a ledger on disk, which is
+    /// what lets the design work stay deterministic while the app reads real
+    /// history — and what `Scripts/check-layering.sh` enforces.
     @MainActor
     @Observable
     final class Model {
+        private(set) var snapshot: TimelineSnapshot
         var window: TimelineWindow
         var enabledKinds: Set<EventKind> = Set(EventKind.allCases)
         var selected: TimelineEvent?
         var query: String = ""
-        var integrity: IntegrityState = .verified
+
+        var integrity: IntegrityState { snapshot.integrity }
 
         static let presets: [(label: String, span: TimeInterval)] = [
             ("24h", 24 * 3600), ("6h", 6 * 3600), ("1h", 3600), ("15m", 900),
         ]
 
-        init() {
-            window = TimelineWindow(start: MockLedger.day, end: MockLedger.now)
-            selected = MockLedger.events.last
+        init(snapshot: TimelineSnapshot) {
+            self.snapshot = snapshot
+            window = TimelineWindow(start: snapshot.history.lowerBound, end: snapshot.history.upperBound)
+            selected = snapshot.events.last
         }
 
         // MARK: - Derivation
 
         /// Everything below is a projection of one window over one dataset.
         var eventsInWindow: [TimelineEvent] {
-            MockLedger.events.filter { window.contains($0.at) }
+            snapshot.events.filter { window.contains($0.at) }
         }
 
         var visibleEvents: [TimelineEvent] {
@@ -65,26 +73,33 @@ extension MainPage {
             if enabledKinds.contains(kind) { enabledKinds.remove(kind) } else { enabledKinds.insert(kind) }
         }
 
-        func zoomIn() { window = window.zoomed(by: 0.5, limit: MockLedger.limit) }
-        func zoomOut() { window = window.zoomed(by: 2, limit: MockLedger.limit) }
+        var history: ClosedRange<Date> { snapshot.history }
+
+        var canZoomIn: Bool { window.span > TimelineWindow.minimumSpan }
+        var canZoomOut: Bool {
+            window.span < history.upperBound.timeIntervalSince(history.lowerBound)
+        }
+
+        func zoomIn() { window = window.zoomed(by: 0.5, limit: history) }
+        func zoomOut() { window = window.zoomed(by: 2, limit: history) }
 
         func resetZoom() {
-            window = TimelineWindow(start: MockLedger.limit.lowerBound, end: MockLedger.limit.upperBound)
+            window = TimelineWindow(start: history.lowerBound, end: history.upperBound)
         }
 
         func zoom(to date: Date) {
             window = TimelineWindow.centred(
                 on: date,
                 span: max(TimelineWindow.minimumSpan, window.span / 4),
-                limit: MockLedger.limit
+                limit: history
             )
         }
 
         func apply(preset span: TimeInterval) {
             window = TimelineWindow.centred(
-                on: MockLedger.limit.upperBound.addingTimeInterval(-span / 2),
+                on: history.upperBound.addingTimeInterval(-span / 2),
                 span: span,
-                limit: MockLedger.limit
+                limit: history
             )
         }
     }

@@ -67,7 +67,11 @@ struct LedgerProofExporter {
         try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
         try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: destination.path)
 
-        let eventsURL = destination.appendingPathComponent("events.jsonl")
+        // Named after the ledger it came from rather than a literal, so the
+        // bundle mirrors whatever the user's ledger is actually called — and so
+        // this file is not a second place that decides what a ledger is named.
+        // `Scripts/check-layering.sh` enforces the second half.
+        let eventsURL = destination.appendingPathComponent(store.activeURL.lastPathComponent)
         let span = try await copyRecords(chain: chain, to: eventsURL, fileManager: fileManager)
 
         let comparison = anchor.map { anchor in
