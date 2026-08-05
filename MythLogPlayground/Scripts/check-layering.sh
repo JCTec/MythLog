@@ -197,11 +197,18 @@ check_storage_resolution() {
   #     process-private container, so a tilde default can never be correct for
   #     shared storage — and must not be reachable at all.
   #
+  #     What is forbidden is a tilde-rooted *path*: `"~/` followed by something.
+  #     A bare `"~/"` — the argument to a `hasPrefix` check — is a detector, not
+  #     a path, and `Config/ConfigValidation.swift` exists precisely to find
+  #     these in a user's config and complain about them. Banning the detector
+  #     along with the thing it detects would mean the only way to warn about a
+  #     tilde path is to not warn about it.
+  #
   #     `Sources/Mock/` is exempt: its tildes are display text inside fixture
   #     event descriptions ("~/Documents/lease.pdf"), never resolved into a URL.
   #     Rule 3e closes that door for every layer including Mock, so the exemption
   #     cannot be used to smuggle in a real path.
-  hits="$(code_lines "$SOURCES" '"~/' | grep -v "^$SOURCES/Mock/" || true)"
+  hits="$(code_lines "$SOURCES" '"~/[^"]' | grep -v "^$SOURCES/Mock/" || true)"
   if [ -n "$hits" ]; then
     fail "tilde-rooted path literals are forbidden outside Sources/Mock/" \
          "$hits" \

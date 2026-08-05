@@ -1,0 +1,153 @@
+{
+  "filesystem" : {
+    "watchedPaths" : [
+      {
+        "label" : "ssh-authorized-keys",
+        "path" : "~/.ssh/authorized_keys",
+        "required" : false
+      },
+      {
+        "label" : "user-launch-agents",
+        "path" : "~/Library/LaunchAgents",
+        "required" : false
+      }
+    ]
+  },
+  "hashAnchor" : {
+    "anchorEveryHeartbeats" : 5,
+    "destination" : "iCloudDrive",
+    "directory" : "~/Library/Mobile Documents/com~apple~CloudDocs/MythLog",
+    "enabled" : true
+  },
+  "heartbeat" : {
+    "checkpointEveryHeartbeats" : 5,
+    "enabled" : true,
+    "intervalSeconds" : 60
+  },
+  "identity" : {
+    "deviceID" : "Fixture’s MacBook Pro",
+    "displayName" : "Fixture’s MacBook Pro"
+  },
+  "notifications" : {
+    "appleScriptFallback" : true,
+    "console" : true,
+    "localNotification" : true,
+    "sound" : true
+  },
+  "remoteCheckpoint" : {
+    "enabled" : false,
+    "outboxOnly" : true
+  },
+  "rules" : [
+    {
+      "cooldownSeconds" : 120,
+      "id" : "screen-unlocked",
+      "match" : {
+        "metadataEquals" : {
+
+        },
+        "name" : "screen.unlocked",
+        "source" : "session"
+      },
+      "message" : "Mac screen unlocked",
+      "severity" : "critical"
+    },
+    {
+      "cooldownSeconds" : 60,
+      "id" : "agent-started",
+      "match" : {
+        "metadataEquals" : {
+
+        },
+        "name" : "agent.started",
+        "source" : "agent"
+      },
+      "message" : "MythLog agent started",
+      "severity" : "notice"
+    },
+    {
+      "cooldownSeconds" : 30,
+      "id" : "canary-changed",
+      "match" : {
+        "metadataEquals" : {
+
+        },
+        "name" : "path.changed",
+        "source" : "filesystem"
+      },
+      "message" : "Watched path changed",
+      "severity" : "warning"
+    },
+    {
+      "cooldownSeconds" : 300,
+      "id" : "log-warning",
+      "match" : {
+        "metadataEquals" : {
+
+        },
+        "minimumSeverity" : "warning",
+        "name" : "log.match",
+        "source" : "unifiedLog"
+      },
+      "message" : "Unified log warning matched",
+      "severity" : "warning"
+    }
+  ],
+  "schemaVersion" : 1,
+  "secrets" : {
+    "allowDevelopmentFallbackKey" : false,
+    "hmacKeyAccount" : "ledger-hmac-key"
+  },
+  "session" : {
+    "enabled" : true,
+    "includeApplicationEvents" : true
+  },
+  "storage" : {
+    "ledgerPath" : "/Users/example/Library/Group Containers/S8662L649U.com.jctec.mythlog.shared/Application Support/MythLog/events.jsonl",
+    "maxLedgerFileBytes" : 4194304,
+    "outboxDirectory" : "/Users/example/Library/Group Containers/S8662L649U.com.jctec.mythlog.shared/Application Support/MythLog/outbox",
+    "runtimeDirectory" : "/Users/example/Library/Group Containers/S8662L649U.com.jctec.mythlog.shared/Application Support/MythLog/runtime",
+    "spoolDirectory" : "/Users/example/Library/Group Containers/S8662L649U.com.jctec.mythlog.shared/Application Support/MythLog/spool"
+  },
+  "telegram" : {
+    "approvedChatIDs" : [
+
+    ],
+    "botTokenAccount" : "telegram-bot-token",
+    "commandsEnabled" : true,
+    "deniedChatIDs" : [
+
+    ],
+    "enabled" : false,
+    "includedEventSources" : [
+
+    ],
+    "includedRuleIDs" : [
+
+    ],
+    "minimumSeverity" : "warning",
+    "pollingEnabled" : false,
+    "pollingIntervalSeconds" : 10,
+    "updateLimit" : 25
+  },
+  "unifiedLog" : {
+    "enabled" : false,
+    "pollIntervalSeconds" : 300,
+    "queries" : [
+      {
+        "limit" : 100,
+        "lookbackSeconds" : 60,
+        "name" : "mythlog-custom-events",
+        "predicateFormat" : "subsystem == 'com.jctec.mythlog.custom'",
+        "scope" : "system"
+      },
+      {
+        "limit" : 25,
+        "lookbackSeconds" : 300,
+        "name" : "current-process-errors",
+        "predicateFormat" : "messageType == error OR messageType == fault",
+        "scope" : "currentProcess"
+      }
+    ]
+  }
+}
