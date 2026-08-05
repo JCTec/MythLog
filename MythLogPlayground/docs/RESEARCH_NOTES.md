@@ -361,3 +361,26 @@ diagnostic.
 | Test seams | Injected `Sendable` value | `nonisolated(unsafe)` global, as shipping | No synchronisation exists to justify the escape hatch (§3) |
 | Property wrappers on the observable model | Avoided | `@Clamped` on `MainPage.Model` | Interaction with `@Observable` is undocumented (§9) |
 | Reading the active segment | Shared `flock` held for the whole stream | Lock-free read | A torn final line would be reported as corruption; blocking one append is the correct trade for a viewer whose claim is an accurate record |
+| Loading the interface's data | Structured (`.task { await load() }`) | Unstructured `Task` + `deinit` cancel | `deinit` on a `@MainActor` class is nonisolated and cannot touch isolated state, so there is nowhere to cancel from; SwiftUI's `.task` owns the lifetime instead |
+| Superseding a derivation | Unstructured `Task`, cancelled by the next `refresh()` | Structured | It has to outlive the call that started it and be cancellable by the *next* one, which structured concurrency does not offer |
+
+---
+
+## Measured, not assumed
+
+Numbers from this machine (Apple Silicon, Xcode 26.5, **Debug** build), against a
+133,893-record ledger written by the shipping engine across 3,044 rotated
+segments:
+
+| | |
+| --- | --- |
+| Warm load (read + verify + gap analysis) | ~6.9 s |
+| Resident memory, fully loaded | ~176 MB |
+| CPU once idle | 0.0% |
+| Coverage gaps found | 2 — one force-quit, one graceful, correctly distinguished |
+| Ordinal sidecars written | 3,043 (one per rotated segment) |
+
+`ps -o %cpu` was misleading here and is worth noting: on macOS it reports an
+average over the process's lifetime, so a process that has just done seven
+seconds of work reads as ~99% busy while being completely idle. The figures
+above are instantaneous samples from `top -l 2`.

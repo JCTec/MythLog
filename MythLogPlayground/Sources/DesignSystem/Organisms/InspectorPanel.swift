@@ -107,9 +107,16 @@ struct InspectorPanel: View {
 
     /// Trust is positional: after a break, later records are untrusted even
     /// though each individually "looks" fine.
+    ///
+    /// The boundary comes from the verification result rather than a constant.
+    /// It used to be `event.record <= 3200`, which was fine while the data was a
+    /// fixture and would have been a lie about somebody's history.
     private func isTrusted(_ event: TimelineEvent) -> Bool {
-        guard integrity == .failed else { return true }
-        return event.record <= 3200
+        switch integrity {
+        case .failed(let lastTrustedOrdinal, _, _): event.record <= lastTrustedOrdinal
+        case .unreadable: false
+        case .verified, .unverified, .truncated, .anchorOffline: true
+        }
     }
 
     private func verdict(for event: TimelineEvent) -> String {
@@ -117,8 +124,13 @@ struct InspectorPanel: View {
     }
 
     private var anchorLine: String {
-        integrity == .anchorOffline
-            ? "Not anchored — iCloud unavailable since 09:12"
-            : "Verified against the 14:00 iCloud anchor"
+        switch integrity {
+        case .anchorOffline: "Not anchored — the anchor location is unavailable"
+        case .truncated(_, let anchored): "Anchored at \(anchored.formatted()) records; this Mac holds fewer"
+        case .verified: "Verified against the chain"
+        case .unverified: "Not verified yet"
+        case .failed: "The chain does not verify past the break"
+        case .unreadable: "The ledger could not be read"
+        }
     }
 }

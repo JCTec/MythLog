@@ -1,8 +1,11 @@
 # MythLog — Playground
 
-A ground-up rebuild of MythLog's interface: design system plus visual
-implementation, driven by mock data. No recorder, no ledger, no I/O — this
-exists to make the design real enough to judge.
+A ground-up rebuild of MythLog: the interface, and now the engine behind it.
+It reads a real hash-chained ledger written by the shipping app, verifies it,
+and renders months of history.
+
+There is still no recorder — this app reads a ledger, it does not write one
+outside its tests.
 
 Separate from the shipping app on purpose. Nothing here imports it and nothing
 there depends on this.
@@ -19,6 +22,25 @@ open MythLog.xcodeproj        # Cmd+R
 `project.yml` pulls in `Sources/` recursively, so new files need no project
 edits. Regenerate after adding folders.
 
+By default it renders the fixture. To point it at a real ledger, set two
+environment variables in the scheme:
+
+```sh
+MYTHLOG_LEDGER=/path/to/events.jsonl
+MYTHLOG_HMAC_KEY_HEX=<64 hex characters>
+```
+
+See `HUMAN_CHECKLIST-ENGINE.md` for what to look at once it is loaded, and
+`docs/RESEARCH_NOTES.md` for the concurrency decisions and their sources.
+
+## Gates
+
+```sh
+./Scripts/check-layering.sh --self-test    # writes 6 real violations, checks each is caught
+xcodebuild -project MythLog.xcodeproj -scheme MythLog \
+  -configuration Debug -destination 'platform=macOS' test
+```
+
 ## Structure — atomic design
 
 Brad Frost's hierarchy, one level per folder. The rule that makes it worth
@@ -27,6 +49,12 @@ page.
 
 ```
 Sources/
+  Primitives/    AlarmEvent, CanonicalJSON, hex, @Clamped, @Memoized, JSONValue
+  Ledger/        the hash chain, streaming, verification, anchors, proof export
+  Platform/      sandbox, App Group container, StorageLocations, entitlements
+  Config/        schema, validation, lossless round-trip
+  Model/         view models — the only layer where the engine meets the UI
+  Mock/          MockLedger — a believable day, behind TimelineSource
   DesignSystem/
     Tokens/      Palette, Typography, Metrics — every literal lives here
     Atoms/       StatusDot, PillSurface, HatchFill
@@ -35,10 +63,29 @@ Sources/
                  InspectorPanel, CoverageGapBanner
     Templates/   MainWindowTemplate — layout only, no meaning
     Pages/       MainPage — template + data + intent
-  Model/         EventKind, TimelineEvent, TimelineWindow, ZoomLevel
-  Mock/          MockLedger — a believable day
-  App/           MythLogApp
+  Previews/      composition roots for the canvas
+  App/           MythLogApp — the composition root
 ```
+
+### Layers
+
+Folders are a convention; nothing stops `Ledger/` importing `DesignSystem/`
+except discipline. `Scripts/check-layering.sh` buys back what a multi-module
+layout enforced for free.
+
+| Layer | May reference |
+| --- | --- |
+| `Primitives/` | Foundation |
+| `Ledger/` | Primitives, CryptoKit, Darwin (`flock`) |
+| `Platform/` | Primitives |
+| `Config/` | Primitives, Platform |
+| `Model/` | Primitives, Ledger, Platform, Config |
+| `DesignSystem/` | Primitives, Model — never the engine directly |
+| `App/`, `Previews/` | everything |
+
+The load-bearing rule is the `Ledger/` one. It is the audit target: someone
+should be able to read that folder alone and satisfy themselves the chain is
+sound.
 
 ### Conventions
 
@@ -55,11 +102,15 @@ Sources/
 ## What the mock data exercises
 
 Deliberately not a happy path. `MockLedger` contains the two cases that break
-naive layouts:
+naive layouts, and it carries heartbeats so gap detection over it behaves
+exactly as it does over a real ledger:
 
-- **A four-hour coverage gap** (02:04–06:28). Rendered as hatching at every zoom
-  level, repeated as prose in the list, and **not hideable by any filter** — an
-  absence of recording is not an event.
+- **A four-hour coverage gap** (02:04–06:28), in two variants — one with a stop
+  record and one without. The one without is the case that matters: a force
+  quit, a crash, or a power cut writes nothing at all, so the gap can only be
+  found by noticing the silence. Rendered as hatching at every zoom level,
+  repeated as prose in the list, and **not hideable by any filter** — an absence
+  of recording is not an event.
 - **A 312-event burst** in ten seconds at 09:41, from one build. Square-root bar
   scaling keeps the surrounding 3–20 event buckets legible instead of flattening
   them.
@@ -84,6 +135,9 @@ VoiceOver, so they can only ever be an accelerator.
 
 ## Known gaps
 
+- Waves 5–8 are not started: no capture sources, no agent runtime, no
+  `SMAppService`, no notifiers, no Telegram. The config schema carries those
+  sections and round-trips them untouched, but nothing interprets them.
 - Pinch (`ctrl`-scroll magnification) is not wired; keyboard and buttons are.
 - Level changes snap. Whether they should cross-fade is an open design question.
 - First run, integrity banners, and the truncated / anchor-offline states are

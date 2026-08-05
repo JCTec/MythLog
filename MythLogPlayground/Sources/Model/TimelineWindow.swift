@@ -2,48 +2,128 @@ import Foundation
 
 /// The visible time window. One window drives the timeline, the list, and the
 /// category counts — they are never allowed to disagree.
+///
+/// # An invalid window is unrepresentable
+///
+/// The span is `@Clamped` to `minimumSpan...fullHistory`, and the start is
+/// always placed so the window lies inside the history it belongs to. Both are
+/// enforced at every construction, not checked afterwards.
+///
+/// The failure this prevents is specific. `TimelineCanvas` maps dates to
+/// x-positions by dividing by the span; a span that reached zero — which
+/// repeated halving does in about fifty keystrokes — divides by something close
+/// to zero and draws every event at ±10^6 points. The bug does not look like a
+/// bad number, it looks like the timeline exploding, and by then the arithmetic
+/// that produced it is three call sites away.
+///
+/// Carrying `history` inside the window is what makes that possible: the upper
+/// bound of a valid span is the length of the user's recorded history, which is
+/// only known at runtime.
 struct TimelineWindow: Equatable, Sendable {
-    var start: Date
-    var end: Date
-
-    var span: TimeInterval { end.timeIntervalSince(start) }
+    /// The full extent of the loaded history. The window can never leave it.
+    let history: ClosedRange<Date>
 
     /// Zooming in below this is refused; below it a "window" stops being useful.
     static let minimumSpan: TimeInterval = 600
 
-    func zoomed(by factor: Double, limit: ClosedRange<Date>) -> TimelineWindow {
-        let centre = start.addingTimeInterval(span / 2)
-        let target = max(Self.minimumSpan, min(span * factor, limit.upperBound.timeIntervalSince(limit.lowerBound)))
-        return Self.centred(on: centre, span: target, limit: limit)
+    /// The visible span, which cannot be set outside `minimumSpan...fullHistory`
+    /// whatever arithmetic produced the assignment.
+    @Clamped private(set) var span: TimeInterval
+
+    private(set) var start: Date
+
+    var end: Date { start.addingTimeInterval(span) }
+
+    /// The whole history, as a span.
+    var fullSpan: TimeInterval {
+        max(Self.minimumSpan, history.upperBound.timeIntervalSince(history.lowerBound))
     }
 
-    static func centred(on centre: Date, span: TimeInterval, limit: ClosedRange<Date>) -> TimelineWindow {
-        let full = limit.upperBound.timeIntervalSince(limit.lowerBound)
-        let clamped = max(minimumSpan, min(span, full))
-        var s = centre.addingTimeInterval(-clamped / 2)
-        if s < limit.lowerBound { s = limit.lowerBound }
-        var e = s.addingTimeInterval(clamped)
-        if e > limit.upperBound {
-            e = limit.upperBound
-            s = e.addingTimeInterval(-clamped)
+    init(history: ClosedRange<Date>, centredOn centre: Date, span requestedSpan: TimeInterval) {
+        self.history = history
+
+        let full = max(Self.minimumSpan, history.upperBound.timeIntervalSince(history.lowerBound))
+        _span = Clamped(wrappedValue: requestedSpan, Self.minimumSpan...full)
+        let clamped = _span.wrappedValue
+
+        // Place the window inside the history: slide rather than shrink, so a
+        // zoom near either edge keeps the span the user asked for.
+        var proposed = centre.addingTimeInterval(-clamped / 2)
+        if proposed < history.lowerBound { proposed = history.lowerBound }
+        if proposed.addingTimeInterval(clamped) > history.upperBound {
+            proposed = history.upperBound.addingTimeInterval(-clamped)
         }
-        return TimelineWindow(start: s, end: e)
+        start = max(history.lowerBound, proposed)
     }
+
+    /// The whole history at once.
+    init(showingAllOf history: ClosedRange<Date>) {
+        let full = history.upperBound.timeIntervalSince(history.lowerBound)
+        self.init(
+            history: history,
+            centredOn: history.lowerBound.addingTimeInterval(full / 2),
+            span: full
+        )
+    }
+
+    /// The most recent `span` of the history.
+    init(history: ClosedRange<Date>, mostRecent span: TimeInterval) {
+        self.init(
+            history: history,
+            centredOn: history.upperBound.addingTimeInterval(-span / 2),
+            span: span
+        )
+    }
+
+    // MARK: - Zooming
+
+    func zoomed(by factor: Double) -> TimelineWindow {
+        TimelineWindow(
+            history: history,
+            centredOn: start.addingTimeInterval(span / 2),
+            span: span * factor
+        )
+    }
+
+    func centred(on date: Date, span newSpan: TimeInterval) -> TimelineWindow {
+        TimelineWindow(history: history, centredOn: date, span: newSpan)
+    }
+
+    /// True when zooming further would change nothing — the honest answer to
+    /// "should this button still be enabled?".
+    var isFullyZoomedIn: Bool { span <= Self.minimumSpan }
+    var isFullyZoomedOut: Bool { span >= fullSpan }
+
+    // MARK: - Projection
 
     func fraction(of date: Date) -> Double {
         guard span > 0 else { return 0 }
         return date.timeIntervalSince(start) / span
     }
 
-    func contains(_ date: Date) -> Bool { date >= start && date < end }
+    /// Inclusive at both ends, deliberately.
+    ///
+    /// A half-open window (`date < end`) drops any event landing exactly on the
+    /// upper bound — and when the whole history is shown, the upper bound *is*
+    /// the newest record's timestamp. So the most recent event, the one a user
+    /// is most likely looking for, was the one that disappeared. It cost nothing
+    /// to be wrong here because the fixture's last event was a few minutes
+    /// before the fixture's "now".
+    ///
+    /// Double-counting at a shared boundary would be the usual argument for
+    /// half-open intervals, and it does not apply: there is exactly one window,
+    /// never a tiling of adjacent ones.
+    func contains(_ date: Date) -> Bool { date >= start && date <= end }
 
     var label: String {
         "\(start.clockText) – \(end.clockText)"
     }
 
-    /// Human span, used in the timeline level chip: "15 h", "1 h", "10 min".
+    /// Human span, used in the timeline level chip: "3 d", "15 h", "1 h",
+    /// "10 min".
     var spanLabel: String {
         let minutes = span / 60
+        if minutes >= 2880 { return "\(Int((minutes / 1440).rounded())) d" }
         if minutes >= 90 { return "\(Int((minutes / 60).rounded())) h" }
         if minutes >= 55 { return "1 h" }
         return "\(Int(minutes.rounded())) min"

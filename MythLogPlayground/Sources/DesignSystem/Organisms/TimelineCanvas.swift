@@ -9,7 +9,7 @@ import SwiftUI
 struct TimelineCanvas: View {
     var events: [TimelineEvent]
     var window: TimelineWindow
-    var gap: CoverageGap
+    var gaps: [CoverageGap]
     var level: ZoomLevel
     var selected: TimelineEvent?
     var onSelect: (TimelineEvent) -> Void
@@ -19,7 +19,7 @@ struct TimelineCanvas: View {
         VStack(alignment: .leading, spacing: Metrics.space2) {
             GeometryReader { geo in
                 ZStack(alignment: .topLeading) {
-                    gapOverlay(width: geo.size.width, height: geo.size.height)
+                    gapOverlays(width: geo.size.width, height: geo.size.height)
 
                     switch level {
                     case .density: density(size: geo.size)
@@ -40,8 +40,18 @@ struct TimelineCanvas: View {
 
     /// Drawn beneath every level and never filterable. An absence of recording
     /// is not an event, so no filter may hide it.
+    ///
+    /// A real ledger has many gaps, not one — every restart after a crash leaves
+    /// another. The fixture had exactly one, which is how this ended up
+    /// singular.
+    private func gapOverlays(width: CGFloat, height: CGFloat) -> some View {
+        ForEach(gaps) { gap in
+            gapOverlay(gap, width: width, height: height)
+        }
+    }
+
     @ViewBuilder
-    private func gapOverlay(width: CGFloat, height: CGFloat) -> some View {
+    private func gapOverlay(_ gap: CoverageGap, width: CGFloat, height: CGFloat) -> some View {
         let l = window.fraction(of: gap.start)
         let r = window.fraction(of: gap.end)
         if r > 0, l < 1 {

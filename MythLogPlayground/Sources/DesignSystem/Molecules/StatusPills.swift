@@ -37,13 +37,3 @@ struct LedgerStatusBadge: View {
         .accessibilityLabel(state.headerText)
     }
 }
-
-#Preview {
-    VStack(alignment: .leading, spacing: Metrics.space3) {
-        RecorderStatusPill(isRunning: true, heartbeat: "4 s")
-        RecorderStatusPill(isRunning: false, heartbeat: "")
-        ForEach(IntegrityState.allCases) { LedgerStatusBadge(state: $0) }
-    }
-    .padding()
-    .background(Palette.canvas)
-}

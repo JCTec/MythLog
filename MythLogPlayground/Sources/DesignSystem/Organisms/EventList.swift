@@ -5,7 +5,7 @@ import SwiftUI
 struct EventList: View {
     var events: [TimelineEvent]
     var window: TimelineWindow
-    var gap: CoverageGap
+    var gaps: [CoverageGap]
     var selected: TimelineEvent?
     var newEventTime: String?
     var onSelect: (TimelineEvent) -> Void
@@ -15,8 +15,10 @@ struct EventList: View {
 
     private var shown: [TimelineEvent] { Array(events.suffix(cap).reversed()) }
     private var isCapped: Bool { events.count > cap }
-    private var gapVisible: Bool {
-        window.fraction(of: gap.end) > 0 && window.fraction(of: gap.start) < 1
+    /// Gaps that overlap the window. Never filtered — an absence of recording
+    /// is not an event, so no filter may hide it.
+    private var visibleGaps: [CoverageGap] {
+        gaps.filter { $0.end > window.start && $0.start < window.end }
     }
 
     var body: some View {
@@ -25,7 +27,9 @@ struct EventList: View {
             Divider().overlay(Palette.divider)
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    if gapVisible { CoverageGapBanner(gap: gap).padding(Metrics.space4) }
+                    ForEach(visibleGaps) { gap in
+                        CoverageGapBanner(gap: gap).padding(Metrics.space4)
+                    }
                     ForEach(shown) { event in
                         EventRow(event: event, isSelected: selected?.id == event.id) { onSelect(event) }
                     }

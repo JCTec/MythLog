@@ -4,9 +4,10 @@ import SwiftUI
 struct MainPage: View {
     @State private var model: Model
 
-    /// The data is injected, never reached for. See ``TimelineSnapshot``.
-    init(snapshot: TimelineSnapshot) {
-        _model = State(initialValue: Model(snapshot: snapshot))
+    /// The data source is injected, never reached for. The page cannot tell a
+    /// fixture from a real ledger, which is what keeps the design honest.
+    init(source: any TimelineSource, request: TimelineLoadRequest = TimelineLoadRequest()) {
+        _model = State(initialValue: Model(source: source, request: request))
     }
 
     var body: some View {
@@ -32,7 +33,7 @@ struct MainPage: View {
                 TimelineCanvas(
                     events: model.visibleEvents,
                     window: model.window,
-                    gap: model.snapshot.gap,
+                    gaps: model.gaps,
                     level: model.level,
                     selected: model.selected,
                     onSelect: { model.selected = $0 },
@@ -43,7 +44,7 @@ struct MainPage: View {
             EventList(
                 events: model.visibleEvents,
                 window: model.window,
-                gap: model.snapshot.gap,
+                gaps: model.gaps,
                 selected: model.selected,
                 newEventTime: "14:37",
                 onSelect: { model.selected = $0 },
@@ -53,6 +54,9 @@ struct MainPage: View {
             InspectorPanel(event: model.selected, integrity: model.integrity)
         }
         .frame(minWidth: 1240, minHeight: 820)
+        // The load starts when the page appears and is cancelled with it, so
+        // closing the window during a two-year read stops the read.
+        .task { await model.load() }
         // Zoom must never be gesture-only: gestures are not keyboard-reachable
         // and not operable under VoiceOver.
         .onKeyPress(keys: ["=", "+", "-", "0"]) { press in
