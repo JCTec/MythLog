@@ -96,6 +96,24 @@ struct StorageLocations: Equatable, Sendable {
         )
     }
 
+    /// The iCloud Drive folder an unsandboxed build writes anchors into — the
+    /// one visible in Finder, so a user can find an anchor and copy it
+    /// somewhere safer.
+    ///
+    /// Here rather than in ``AnchorLocations`` because this file is the single
+    /// place permitted to ask where home is, and `Scripts/check-layering.sh`
+    /// enforces that. A second type resolving `~` is precisely the shape of the
+    /// 1.0.0 bug, whatever it is resolving it for.
+    static func iCloudDriveDirectory(
+        home: URL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+    ) -> URL {
+        home
+            .appendingPathComponent("Library", isDirectory: true)
+            .appendingPathComponent("Mobile Documents", isDirectory: true)
+            .appendingPathComponent("com~apple~CloudDocs", isDirectory: true)
+            .appendingPathComponent("MythLog", isDirectory: true)
+    }
+
     /// Locations rooted at an arbitrary directory — for tests, and for opening a
     /// ledger the user picked by hand rather than the installed one.
     ///

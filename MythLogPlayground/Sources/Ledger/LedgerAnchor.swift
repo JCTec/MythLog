@@ -43,56 +43,6 @@ struct LedgerHashAnchor: Codable, Equatable, Sendable, Identifiable {
     }
 }
 
-/// Writes anchors into a directory that should live outside this Mac — an
-/// iCloud Drive folder, typically.
-///
-/// `anchor-latest.json` is the fast comparison surface. `anchor-history.jsonl`
-/// is append-only, so rolling "latest" back to an older value is itself visible.
-///
-/// An `actor` because two anchor writes must not interleave in the history file,
-/// and because the append is I/O that should not occupy a caller.
-actor LedgerAnchorWriter {
-    static let latestFileName = "anchor-latest.json"
-    static let historyFileName = "anchor-history.jsonl"
-
-    private let directory: URL
-    private let fileManager: FileManager
-
-    /// `sending` for the same reason as ``LedgerStore/init(ledgerURL:hmacKey:maxFileBytes:fileManager:)``:
-    /// `FileManager` is not `Sendable`, and this actor takes sole ownership
-    /// rather than asserting one is safe to share.
-    init(directory: URL, fileManager: sending FileManager = FileManager()) {
-        self.directory = directory
-        self.fileManager = fileManager
-    }
-
-    func write(_ anchor: LedgerHashAnchor) async throws {
-        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        let line = try CanonicalJSON.encodeLine(anchor)
-
-        let latestURL = directory.appendingPathComponent(Self.latestFileName)
-        try line.write(to: latestURL, options: [.atomic])
-        try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: latestURL.path)
-
-        let historyURL = directory.appendingPathComponent(Self.historyFileName)
-        if !fileManager.fileExists(atPath: historyURL.path) {
-            fileManager.createFile(atPath: historyURL.path, contents: nil)
-            try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: historyURL.path)
-        }
-
-        let file = try await LockedFile.openForUpdating(historyURL)
-        defer { file.close() }
-        try file.handle.seekToEnd()
-        try file.handle.write(contentsOf: line)
-    }
-
-    func readLatest() throws -> LedgerHashAnchor? {
-        let latestURL = directory.appendingPathComponent(Self.latestFileName)
-        guard fileManager.fileExists(atPath: latestURL.path) else { return nil }
-        return try CanonicalJSON.decode(LedgerHashAnchor.self, from: Data(contentsOf: latestURL))
-    }
-}
-
 /// Compares a ledger against an anchor taken earlier.
 ///
 /// Pure computation on two values already in memory, so it is a synchronous

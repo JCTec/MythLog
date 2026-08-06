@@ -154,7 +154,13 @@ struct HeartbeatConfig: Codable, Equatable, Sendable {
     var gapThreshold: TimeInterval { intervalSeconds * Self.missedHeartbeatsForGap }
 }
 
-enum AnchorDestination: String, Codable, Equatable, Sendable {
+/// Which kind of destination the user picked.
+///
+/// Named `…Kind` because ``AnchorDestination`` is now the protocol that *does*
+/// the writing. This is the schema value naming a choice; that is the thing
+/// carrying it out. The raw values are unchanged, so every config already on
+/// disk decodes exactly as before.
+enum AnchorDestinationKind: String, Codable, Equatable, Sendable {
     /// The environment-aware iCloud location. The default, because an anchor is
     /// only evidence if it lives outside the Mac it describes.
     case iCloudDrive
@@ -166,13 +172,13 @@ struct HashAnchorConfig: Codable, Equatable, Sendable {
     var enabled: Bool
     var directory: String?
     var anchorEveryHeartbeats: Int
-    var destination: AnchorDestination
+    var destination: AnchorDestinationKind
 
     init(
         enabled: Bool = true,
         directory: String? = nil,
         anchorEveryHeartbeats: Int = 5,
-        destination: AnchorDestination = .iCloudDrive
+        destination: AnchorDestinationKind = .iCloudDrive
     ) {
         self.enabled = enabled
         self.directory = directory
@@ -192,6 +198,6 @@ struct HashAnchorConfig: Codable, Equatable, Sendable {
         // A config predating this field kept writing to `directory`, so an absent
         // `destination` must decode as `.directory` — byte-for-byte the old
         // behaviour. Freshly created configs default to `.iCloudDrive`.
-        destination = try container.decodeIfPresent(AnchorDestination.self, forKey: .destination) ?? .directory
+        destination = try container.decodeIfPresent(AnchorDestinationKind.self, forKey: .destination) ?? .directory
     }
 }

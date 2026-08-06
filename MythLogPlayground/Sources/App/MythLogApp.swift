@@ -19,5 +19,14 @@ struct MythLogApp: App {
         }
         .windowStyle(.titleBar)
         .defaultSize(width: 1420, height: 900)
+
+        // ⌘, and the app menu, which is where a Mac user looks for a setting.
+        // The anchor choice needs to be *found* to be reframed — a threat
+        // explanation nobody reaches is the same as no explanation.
+        Settings {
+            AnchorSettingsPage()
+                .preferredColorScheme(.dark)
+                .frame(minWidth: 640, minHeight: 620)
+        }
     }
 }

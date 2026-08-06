@@ -22,13 +22,21 @@ open MythLog.xcodeproj        # Cmd+R
 `project.yml` pulls in `Sources/` recursively, so new files need no project
 edits. Regenerate after adding folders.
 
-By default it renders the fixture. To point it at a real ledger, set two
-environment variables in the scheme:
+It opens on a chooser. If a ledger exists where an install would put one it is
+offered there — found, never opened for you, because this app is also used for
+screenshots. "Open ledger…" takes any file, which is what the tamper tests in
+`HUMAN_CHECKLIST-ENGINE.md` need.
+
+The environment variables still work, and still open immediately, for automation
+and for tests that need a deliberately wrong key:
 
 ```sh
 MYTHLOG_LEDGER=/path/to/events.jsonl
 MYTHLOG_HMAC_KEY_HEX=<64 hex characters>
 ```
+
+Anchor settings are at ⌘, — where the chain head is kept, framed as the question
+it actually is.
 
 See `HUMAN_CHECKLIST-ENGINE.md` for what to look at once it is loaded, and
 `docs/RESEARCH_NOTES.md` for the concurrency decisions and their sources.
@@ -60,9 +68,13 @@ Sources/
     Atoms/       StatusDot, PillSurface, HatchFill
     Molecules/   FilterChip, StatusPills, ZoomControls, EventRow
     Organisms/   HeaderBar, FilterBar, TimelineCanvas, EventList,
-                 InspectorPanel, CoverageGapBanner
+                 InspectorPanel, CoverageGapBanner, IntegrityBanner,
+                 LedgerChooser, PrincipleColumns, AnchorChoiceCard
     Templates/   MainWindowTemplate — layout only, no meaning
-    Pages/       MainPage — template + data + intent
+    Pages/       RootPage — choose a ledger, then read it
+                 MainPage — template + data + intent
+                 WelcomePage — first run, and what the app refuses to record
+                 AnchorSettingsPage — who are you keeping this away from?
   Previews/      composition roots for the canvas
   App/           MythLogApp — the composition root
 ```
@@ -135,12 +147,38 @@ VoiceOver, so they can only ever be an accelerator.
 
 ## Known gaps
 
-- Waves 5–8 are not started: no capture sources, no agent runtime, no
-  `SMAppService`, no notifiers, no Telegram. The config schema carries those
-  sections and round-trips them untouched, but nothing interprets them.
-- Pinch (`ctrl`-scroll magnification) is not wired; keyboard and buttons are.
-- Level changes snap. Whether they should cross-fade is an open design question.
-- First run, integrity banners, and the truncated / anchor-offline states are
-  modelled in `IntegrityState` but have no page yet.
-- Light mode is untouched. Dynamic Type and localisation are unverified — the
-  four-column row is the hard case.
+Honest about what is not here.
+
+**Not started.** Waves 5–8: no capture sources, no agent runtime, no
+`SMAppService`, no notifiers, no Telegram. The recorder-status pill in the header
+is still hard-coded — this app reads ledgers, it does not run one. The config
+schema carries those sections and round-trips them untouched, but nothing
+interprets them.
+
+**Anchoring is groundwork only.** `AnchorDestination` is a protocol with both
+shipped destinations behind it, so new ones are additive — but no new destination
+exists. Telegram, git, OpenTimestamps and a remote server are phases 4–6 in
+`docs/ANCHOR_DESTINATIONS.md` and are not built. The settings page shows and
+changes the choice in memory; it does not write `config.json`, because the
+recorder owns that file.
+
+**Nothing writes config or ledgers outside tests.** Choosing an anchor folder
+needs a picker and a config-writing path, and neither exists.
+
+**Multiple simultaneous anchors** (phase 3) are not built, so there is no answer
+yet for two destinations disagreeing — which is the interesting case, since stale
+and truncated look identical at a glance and mean opposite things.
+
+**Sandboxing.** The app is deliberately unsandboxed, which is why it can read the
+App Group container and open any file the user picks. A sandboxed build would
+need the App Groups entitlement for auto-detect and security-scoped bookmarks for
+the picker. Noted in `LedgerDiscovery`.
+
+**Interface.** Pinch (`ctrl`-scroll magnification) is not wired; keyboard and
+buttons are. Level changes snap; whether they should cross-fade is an open
+question. Light mode is untouched, and Dynamic Type and localisation are
+unverified — the four-column row is the hard case.
+
+**Unverified by eye.** Screen capture is not available to the environment these
+phases were built in, so the rendering of every state was checked through
+previews, tests, and diagnostics rather than by looking at it.
