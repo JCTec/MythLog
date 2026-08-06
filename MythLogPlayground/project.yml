@@ -32,6 +32,23 @@ targets:
     scheme:
       testTargets:
         - MythLogEngineTests
+      # A test run resolves its own App Group container, never the one the
+      # recorder on this Mac is using.
+      #
+      # Reading another app's container is TCC-gated, and this app is signed
+      # ad-hoc, so the identity TCC recorded its answer against is gone the
+      # moment it is rebuilt: every run asks again. Under `xcodebuild test` that
+      # dialog appears with nobody in front of it, the read blocks in the
+      # kernel, and the run fails as "the test runner hung before establishing
+      # connection" — which names neither the permission nor the file.
+      #
+      # It is also the right default on its own terms. This app is run on other
+      # people's Macs, and a test suite has no business reading somebody's real
+      # config and history to check its own arithmetic. The directory does not
+      # need to exist: nothing there means no install, which is exactly the
+      # state the tests want. See `SharedContainer.containerOverrideKey`.
+      environmentVariables:
+        MYTHLOG_CONTAINER: $(TMPDIR)mythlog-test-container
     settings:
       base:
         PRODUCT_NAME: MythLog
@@ -42,6 +59,24 @@ targets:
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         CODE_SIGN_STYLE: Automatic
+        # A stable code-signing identity, and the reason is not distribution.
+        #
+        # Reading the recorder's App Group container is TCC-gated, and TCC
+        # records its answer against the app's signing identity. Ad-hoc
+        # signatures have none that survives a rebuild, so every single build
+        # asked again — "MythLog would like to access data from other apps" —
+        # and a build nobody was watching hung on it forever.
+        #
+        # Signed with a real Apple Development identity, the answer is asked
+        # once and remembered.
+        #
+        # On a machine without this team's certificates, override it on the
+        # command line — `xcodebuild DEVELOPMENT_TEAM= …` — or edit it here.
+        # The app still builds and runs signed ad-hoc; it just goes back to
+        # asking on every build. The team is the same identifier
+        # `SharedContainer` uses for the App Group, and for the same reason:
+        # they have to match to name the same container.
+        DEVELOPMENT_TEAM: S8662L649U
         # Design harness, not a shipping build.
         ENABLE_APP_SANDBOX: NO
 

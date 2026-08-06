@@ -35,10 +35,46 @@ struct SharedContainer: Sendable {
         self.resolver = resolver
     }
 
+    /// Names a directory to use as the container instead of asking macOS, or —
+    /// when empty — declares that this process has no shared container at all.
+    ///
+    /// # Why an override exists, and why it is not a convenience
+    ///
+    /// Reading another application's group container is gated by TCC: the first
+    /// time this app opens a file in `~/Library/Group Containers/<group>/`,
+    /// macOS puts up *"MythLog would like to access data from other apps"* and
+    /// blocks the read in the kernel until somebody answers.
+    ///
+    /// That is correct behaviour, and it is fatal to a test run twice over.
+    /// TCC records its answer against the app's **code-signing identity**, and
+    /// this playground is signed ad-hoc — the identity changes with every
+    /// rebuild, so the answer never applies to the binary that asked. Worse,
+    /// under `xcodebuild test` the test host puts up that dialog with nobody in
+    /// front of it: the read blocks forever, the runner never connects, and the
+    /// failure reads as *"The test runner hung before establishing connection"*,
+    /// which names neither the app, the file, nor the permission.
+    ///
+    /// So the test scheme sets this, and a test run resolves a directory of its
+    /// own. That is not merely a workaround for a dialog. This app is run on
+    /// other people's Macs for design work, and the same rule that makes
+    /// discovery an *offer* rather than a load — see ``LedgerDiscovery`` — says
+    /// a test suite has no business reading somebody's real config and history
+    /// in order to check its own arithmetic.
+    static let containerOverrideKey = "MYTHLOG_CONTAINER"
+
     /// The real one. Uses a fresh `FileManager` rather than `.default`, which is
     /// shared process-wide and non-`Sendable`.
+    ///
+    /// The environment is consulted per resolution rather than captured once:
+    /// nothing here should behave differently depending on how early it was
+    /// first asked.
     static let system = SharedContainer { identifier in
-        FileManager().containerURL(forSecurityApplicationGroupIdentifier: identifier)
+        if let override = ProcessInfo.processInfo.environment[containerOverrideKey] {
+            // Empty means "no container", which is a real state — a Mac with no
+            // MythLog installed — and the one a test run should be in.
+            return override.isEmpty ? nil : URL(fileURLWithPath: override, isDirectory: true)
+        }
+        return FileManager().containerURL(forSecurityApplicationGroupIdentifier: identifier)
     }
 
     /// Always resolves to `url`. For tests that need the sandboxed path on an
