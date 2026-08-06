@@ -33,7 +33,23 @@ and for tests that need a deliberately wrong key:
 ```sh
 MYTHLOG_LEDGER=/path/to/events.jsonl
 MYTHLOG_HMAC_KEY_HEX=<64 hex characters>
+MYTHLOG_CONTAINER=/path/to/a/group/container   # empty means "no install here"
 ```
+
+`MYTHLOG_CONTAINER` replaces the App Group container this process resolves. The
+test scheme sets it, so a test run never reads the ledger and config belonging to
+the recorder on this Mac — both because a test suite has no business reading
+somebody's history to check its own arithmetic, and because reading another app's
+container is TCC-gated: macOS blocks the read behind *"MythLog would like to
+access data from other apps"*, and under `xcodebuild test` that dialog has nobody
+in front of it. The run then fails as "the test runner hung before establishing
+connection", which names neither the permission nor the file.
+
+The app is signed with a real Apple Development identity (`DEVELOPMENT_TEAM` in
+`project.yml`) for the same reason: TCC records its answer against the signing
+identity, and an ad-hoc signature does not survive a rebuild — so every build
+asked again. Building on a machine without those certificates works; pass
+`DEVELOPMENT_TEAM=` to `xcodebuild` and it signs ad-hoc.
 
 Anchor settings are at ⌘, — where the chain head is kept, framed as the question
 it actually is.
@@ -191,6 +207,46 @@ setting; the analysis does not yet act on it.
 Zoom is never gesture-only: ⌘+ / ⌘− / ⌘0, the +/− buttons, the range presets, and
 click-a-bar all do it. Gestures are not keyboard-reachable and not operable under
 VoiceOver, so they can only ever be an accelerator.
+
+### Panning
+
+The window moves sideways through history at a constant span, at every level.
+It is **not** a `ScrollView`: scrolling needs content as wide as the thing being
+scrolled, and a two-year history at the Events level is millions of points of
+view nobody can render. Panning changes the window and lets the derivation
+recompute — the same path zoom takes, including the cancel-before-restart that
+keeps a fast sweep off the main thread.
+
+| Input | Does |
+| --- | --- |
+| Two-finger horizontal scroll | Pan. Vertical scroll passes through to the page; `⌃`/`⌘`-scroll is left for zoom. |
+| ← → | Pan by a quarter of the window, while the timeline has focus. |
+| ⌥⇧← / ⌥⇧→ | The same, from the Timeline menu — no focus needed. |
+| ⌘← / ⌘→ | Beginning of history / now. |
+| ⌥← / ⌥→ | Step the **selection**, not the window — as `docs/ACCESSIBILITY.md` documents. |
+| Drag the position bar | Pan, coarsely. |
+
+The menu commands stand down while the search field is being edited, so ⌘← stays
+"beginning of line" and ⌥← stays "back one word" in a text field. Plain arrows
+are deliberately not menu key equivalents — as menu shortcuts they would take the
+arrow keys away from every text field in the app — so they are handled by the
+focused canvas instead, and the menu carries an unmodified-by-focus equivalent.
+
+**Clamped to history.** The window can never start before the first record or
+end after the last, and every panning operation goes through the same
+initialiser that already enforced it for zoom.
+
+**The live edge is a state you can read.** A window at the newest end of the
+history is where new records arrive; panning away from it is not. The position
+bar says which, and re-attaching is one keystroke, one click, or panning back to
+the edge. A reload re-pins to the live edge for a reader who was at it, and holds
+position for a reader who was not — being moved to now because the recorder wrote
+a heartbeat is the failure that prevents.
+
+**Selection survives panning**, because a record you panned away from is usually
+one you are still thinking about. The inspector says when the selected record is
+outside the visible window and offers the way back, rather than describing a
+record with nothing on screen to match it.
 
 ## Known gaps
 

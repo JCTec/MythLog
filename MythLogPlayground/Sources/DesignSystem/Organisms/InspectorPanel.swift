@@ -11,10 +11,17 @@ struct InspectorPanel: View {
     /// Where trustworthy history ends. Supplied rather than derived here so the
     /// inspector, the list, and the timeline cannot disagree about it.
     var trustBoundary: TrustBoundary?
+    /// Whether the selected record lies outside the visible window — which
+    /// panning can arrange, since panning never changes the selection.
+    var isOutsideWindow: Bool = false
+    /// Moves the window back to the selected record. `nil` where there is no
+    /// window to move, as in the previews.
+    var onReveal: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.space4) {
             if let event {
+                if isOutsideWindow { outsideWindowNote }
                 // Above the event's own title, deliberately. An untrusted
                 // record's verdict is the most consequential thing on this
                 // panel and it used to be an 11pt caption at the bottom.
@@ -39,6 +46,42 @@ struct InspectorPanel: View {
         .padding(Metrics.space4)
         .frame(width: Metrics.inspectorWidth, alignment: .leading)
         .panelSurface()
+    }
+
+    /// Says that this record is not on the timeline right now, and offers the
+    /// way back.
+    ///
+    /// The alternative — clearing the selection when it scrolls out of the
+    /// window — was rejected: panning to look at the surrounding hours is
+    /// exactly when someone wants the record they were reading to stay in front
+    /// of them. But an inspector describing a record with nothing on screen to
+    /// match it is how a person ends up certain they are looking at the wrong
+    /// one, so it says so.
+    private var outsideWindowNote: some View {
+        HStack(spacing: Metrics.space2) {
+            Image(systemName: "eye.slash")
+                .font(.system(size: 11))
+            Text("Outside the visible window")
+                .font(Typography.caption)
+
+            Spacer(minLength: 0)
+
+            if let onReveal {
+                Button("Show it", action: onReveal)
+                    .buttonStyle(.plain)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.accent)
+                    .accessibilityLabel("Move the timeline to the selected record")
+            }
+        }
+        .foregroundStyle(Palette.textTertiary)
+        .padding(.horizontal, Metrics.space3)
+        .frame(height: Metrics.chipHeight)
+        .background(
+            RoundedRectangle(cornerRadius: Metrics.radiusControl, style: .continuous)
+                .fill(Palette.surfaceSunken)
+        )
+        .accessibilityElement(children: .combine)
     }
 
     private func header(_ event: TimelineEvent) -> some View {

@@ -108,15 +108,54 @@ extension MainPage {
         }
 
         private func apply(_ snapshot: TimelineSnapshot) async {
+            // Read before the snapshot is replaced: both answers describe the
+            // window the user was looking at, not the one they are about to get.
+            let wasFirstLoad = self.snapshot.isEmpty
+            let wasLive = window.isAtEnd
+            let previous = window
+            let keptOrdinal = selected?.record
+
             self.snapshot = snapshot
             isLoading = false
             loadStage = nil
 
-            window = TimelineWindow(showingAllOf: snapshot.history)
-            selected = snapshot.events.last
+            window = nextWindow(for: snapshot, after: previous, wasFirstLoad: wasFirstLoad, wasLive: wasLive)
+            // Selection survives a reload when the record does. Matched on the
+            // ledger ordinal, not on `id`: a `TimelineEvent`'s identity is a
+            // fresh UUID minted during mapping, so the "same" record is a
+            // different value every time the ledger is read.
+            selected = keptOrdinal.flatMap { ordinal in
+                snapshot.events.first { $0.record == ordinal }
+            } ?? snapshot.events.last
 
             await derivation.replace(events: snapshot.events, gaps: snapshot.gaps)
             refresh()
+        }
+
+        /// Where to put the window when new data arrives.
+        ///
+        /// Three cases, and the distinction between the last two is the whole
+        /// point of having a live edge at all:
+        ///
+        /// - **First load** — show everything. There is no position to keep.
+        /// - **Was live** — pin to the new right edge at the same span, so
+        ///   records written since the last read flow in.
+        /// - **Was reading history** — hold position. Someone examining a
+        ///   Tuesday in March did not ask to be moved to now because the
+        ///   recorder wrote a heartbeat.
+        private func nextWindow(
+            for snapshot: TimelineSnapshot,
+            after previous: TimelineWindow,
+            wasFirstLoad: Bool,
+            wasLive: Bool
+        ) -> TimelineWindow {
+            guard !wasFirstLoad else { return TimelineWindow(showingAllOf: snapshot.history) }
+            if wasLive { return TimelineWindow(history: snapshot.history, mostRecent: previous.span) }
+            return TimelineWindow(
+                history: snapshot.history,
+                centredOn: previous.start.addingTimeInterval(previous.span / 2),
+                span: previous.span
+            )
         }
 
         // MARK: - Derivation
@@ -169,6 +208,87 @@ extension MainPage {
             setWindow(TimelineWindow(history: history, mostRecent: span))
         }
 
+        // MARK: - Panning
+
+        /// A quarter of the visible span per keypress.
+        ///
+        /// Chosen so three-quarters of what you were looking at is still on
+        /// screen afterwards. A full window per press is a jump — nothing
+        /// carries over, and the eye has to re-find its place from scratch; an
+        /// eighth is too little to be worth the keystroke at any span. A
+        /// quarter also means four presses cross the window exactly, which is a
+        /// rhythm you can feel rather than count.
+        static let panFraction = 0.25
+
+        func panEarlier() { setWindow(window.panned(by: -window.span * Self.panFraction)) }
+        func panLater() { setWindow(window.panned(by: window.span * Self.panFraction)) }
+
+        /// Panning by a distance measured in points, for the trackpad. The view
+        /// converts from points to seconds because only the view knows how wide
+        /// it is drawn.
+        func pan(bySeconds seconds: TimeInterval) {
+            setWindow(window.panned(by: seconds))
+        }
+
+        func jumpToStart() { setWindow(window.pannedToStart) }
+
+        /// The "1 new event" affordance: go to the newest record *and* re-attach
+        /// to the live edge. Selecting a record the window does not contain
+        /// would answer half the request.
+        ///
+        /// The selection comes from the snapshot rather than from
+        /// ``visibleEvents``, which describes the window that is being left.
+        func jumpToNewest() {
+            selected = snapshot.events.last
+            jumpToNow()
+        }
+
+        /// Re-attaches to the live edge. The state is visible in
+        /// ``HistoryPositionBar``, because "I am watching now" and "I am reading
+        /// history" are different situations and an interface that looks the
+        /// same in both is lying by omission.
+        func jumpToNow() { setWindow(window.pannedToNow) }
+
+        /// Drag on the position bar: put the window's start at `fraction` of the
+        /// way through the history.
+        func scrub(toFraction fraction: Double) {
+            setWindow(window.positioned(atFraction: fraction))
+        }
+
+        /// Moves the window until the selected event is inside it, keeping the
+        /// span. The way back from "I panned away from what I was reading".
+        func revealSelection() {
+            guard let selected else { return }
+            setWindow(window.centred(on: selected.at, span: window.span))
+        }
+
+        // MARK: - Selection stepping
+
+        /// ⌥← / ⌥→ move the *selection*; ← / → move the *window*. They are
+        /// deliberately different operations on different things, and the
+        /// modifier is what says which: panning changes what you can see,
+        /// stepping changes what you are looking at. Neither implies the other —
+        /// panning past the selected event does not deselect it, and stepping
+        /// the selection does not move the window.
+        ///
+        /// Stepping walks the events that are actually on screen, in time order,
+        /// and clamps at both ends rather than wrapping. With the selection
+        /// off-screen — which panning can arrange — the next step lands on the
+        /// nearest visible end rather than doing nothing.
+        func selectPreviousEvent() { step(by: -1) }
+        func selectNextEvent() { step(by: 1) }
+
+        private func step(by offset: Int) {
+            let events = visibleEvents
+            guard !events.isEmpty else { return }
+
+            guard let current = selected, let index = events.firstIndex(where: { $0.id == current.id }) else {
+                selected = offset < 0 ? events.last : events.first
+                return
+            }
+            selected = events[min(max(index + offset, 0), events.count - 1)]
+        }
+
         private func setWindow(_ new: TimelineWindow) {
             guard new != window else { return }
             window = new
@@ -179,6 +299,25 @@ extension MainPage {
 
         var canZoomIn: Bool { !window.isFullyZoomedIn }
         var canZoomOut: Bool { !window.isFullyZoomedOut }
+
+        var canPanEarlier: Bool { window.canPanEarlier }
+        var canPanLater: Bool { window.canPanLater }
+
+        /// True when the window sits at the newest end of the history, which is
+        /// where records arriving now would appear.
+        var isFollowingLive: Bool { window.isAtEnd }
+
+        /// Whether the selected event is outside the window.
+        ///
+        /// Panning does not clear the selection — the inspector keeps showing
+        /// the record, because a record you panned away from is usually a record
+        /// you are still thinking about. It does say so, though: a panel
+        /// describing something not on screen, with nothing marking it as such,
+        /// is how a user ends up believing they are looking at the wrong record.
+        var isSelectionOffscreen: Bool {
+            guard let selected else { return false }
+            return !window.contains(selected.at)
+        }
 
         var activePreset: String? {
             Self.presets.first { abs($0.span - window.span) < 60 }?.label

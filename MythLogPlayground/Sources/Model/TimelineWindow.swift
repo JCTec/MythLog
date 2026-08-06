@@ -89,6 +89,84 @@ struct TimelineWindow: Equatable, Sendable {
         TimelineWindow(history: history, centredOn: date, span: newSpan)
     }
 
+    // MARK: - Panning
+
+    /// # Panning is zooming with a different axis
+    ///
+    /// It moves the window along the history at a constant span. It is not
+    /// scrolling a view: there is no content wider than the screen to scroll,
+    /// and there could not be — a two-year history at the Events level would be
+    /// millions of points wide. There is one window over one dataset, and every
+    /// derived thing follows it.
+    ///
+    /// Every panning operation below goes through
+    /// ``init(history:centredOn:span:)``, which already places a window inside
+    /// its history by *sliding* rather than shrinking. So clamping at both ends
+    /// is not implemented here — it is inherited, and it cannot be forgotten at
+    /// one call site and remembered at another. The span survives untouched for
+    /// the same reason: the initialiser clamps it to `minimumSpan...fullSpan`,
+    /// and a span that is already in that range passes through unchanged.
+
+    /// Moved `seconds` later (positive) or earlier (negative), at constant span.
+    func panned(by seconds: TimeInterval) -> TimelineWindow {
+        TimelineWindow(
+            history: history,
+            centredOn: start.addingTimeInterval(span / 2 + seconds),
+            span: span
+        )
+    }
+
+    /// The oldest `span` of the history — as far back as this window can go.
+    var pannedToStart: TimelineWindow {
+        TimelineWindow(
+            history: history,
+            centredOn: history.lowerBound.addingTimeInterval(span / 2),
+            span: span
+        )
+    }
+
+    /// The newest `span` of the history: the live edge, where new records
+    /// arrive.
+    var pannedToNow: TimelineWindow {
+        TimelineWindow(history: history, mostRecent: span)
+    }
+
+    /// Half a second: shorter than any silence worth naming and longer than the
+    /// floating-point drift of `history.upperBound - span + span`, which is what
+    /// pinning to an edge actually computes.
+    private static let edgeTolerance: TimeInterval = 0.5
+
+    var isAtStart: Bool { start.timeIntervalSince(history.lowerBound) <= Self.edgeTolerance }
+
+    /// At the newest end of the history — "I am watching now" rather than "I am
+    /// reading history". What re-attaching to live means, and what the interface
+    /// has to be able to say out loud.
+    var isAtEnd: Bool { history.upperBound.timeIntervalSince(end) <= Self.edgeTolerance }
+
+    var canPanEarlier: Bool { !isAtStart }
+    var canPanLater: Bool { !isAtEnd }
+
+    /// Where this window sits inside the whole history, as fractions in `0...1`.
+    ///
+    /// For the position indicator. A window spanning the entire history returns
+    /// `0...1`, and a history of zero length — one record, before the minimum
+    /// span is applied — returns `0...1` rather than dividing by zero.
+    var positionInHistory: ClosedRange<Double> {
+        let total = history.upperBound.timeIntervalSince(history.lowerBound)
+        guard total > 0 else { return 0...1 }
+        let lower = min(max(start.timeIntervalSince(history.lowerBound) / total, 0), 1)
+        let upper = min(max(end.timeIntervalSince(history.lowerBound) / total, 0), 1)
+        return lower...max(lower, upper)
+    }
+
+    /// The window starting at `fraction` of the way through the history — what a
+    /// drag on the position bar means.
+    func positioned(atFraction fraction: Double) -> TimelineWindow {
+        let total = history.upperBound.timeIntervalSince(history.lowerBound)
+        let at = history.lowerBound.addingTimeInterval(total * min(max(fraction, 0), 1))
+        return TimelineWindow(history: history, centredOn: at.addingTimeInterval(span / 2), span: span)
+    }
+
     /// True when zooming further would change nothing — the honest answer to
     /// "should this button still be enabled?".
     var isFullyZoomedIn: Bool { span <= Self.minimumSpan }

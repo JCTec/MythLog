@@ -38,6 +38,12 @@ enum Metrics {
     /// and to be a target the eye lands on.
     static let timelineGapTickWidth: CGFloat = 3
 
+    /// The position-in-history bar under the axis.
+    static let historyBarHeight: CGFloat = 5
+    /// A ten-minute window over two years is a thousandth of a point wide. It is
+    /// drawn at least this wide, because "where you are" cannot be nowhere.
+    static let historyBarMinimumThumb: CGFloat = 8
+
     // Event list.
     static let rowHeight: CGFloat = 32
     static let rowTimeWidth: CGFloat = 74

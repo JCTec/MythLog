@@ -4,6 +4,10 @@ import SwiftUI
 struct MainPage: View {
     @State private var model: Model
 
+    /// Whether the search field is being edited. It gates the Timeline menu:
+    /// while a text field has the keyboard, the arrow keys belong to it.
+    @FocusState private var isSearching: Bool
+
     /// What is loaded, so the header can always say so. The page still cannot
     /// tell a fixture from a real ledger by looking at the *data* — which is
     /// what keeps the design honest — it is simply told which it was handed.
@@ -31,7 +35,8 @@ struct MainPage: View {
                 since: model.snapshot.since,
                 loaded: loaded,
                 onClose: onClose,
-                query: $model.query
+                query: $model.query,
+                queryFocus: $isSearching
             )
         } filters: {
             FilterBar(
@@ -44,15 +49,12 @@ struct MainPage: View {
         } timeline: {
             VStack(alignment: .leading, spacing: Metrics.space3) {
                 timelineHeader
-                TimelineCanvas(
-                    events: model.visibleEvents,
+                canvas
+                HistoryPositionBar(
                     window: model.window,
-                    gaps: model.gaps,
-                    trustBoundary: model.trustBoundary,
-                    level: model.level,
-                    selected: model.selected,
-                    onSelect: { model.selected = $0 },
-                    onZoomTo: model.zoom(to:)
+                    isLive: model.isFollowingLive,
+                    onScrub: model.scrub(toFraction:),
+                    onJumpToNow: model.jumpToNow
                 )
             }
         } list: {
@@ -75,14 +77,18 @@ struct MainPage: View {
                     selected: model.selected,
                     newEventTime: "14:37",
                     onSelect: { model.selected = $0 },
-                    onJumpToNew: { model.selected = model.visibleEvents.last }
+                    // Both halves of the request: the newest record, and the
+                    // live edge it lives at.
+                    onJumpToNew: model.jumpToNewest
                 )
             }
         } inspector: {
             InspectorPanel(
                 event: model.selected,
                 integrity: model.integrity,
-                trustBoundary: model.trustBoundary
+                trustBoundary: model.trustBoundary,
+                isOutsideWindow: model.isSelectionOffscreen,
+                onReveal: model.revealSelection
             )
         }
         .frame(minWidth: 1240, minHeight: 820)
@@ -100,6 +106,74 @@ struct MainPage: View {
             }
             return .handled
         }
+        // Published while this page is the active scene's content — and
+        // deliberately *not* while the search field is being edited, so ⌘← and
+        // ⌥← stay "beginning of line" and "back one word" in a text field. See
+        // ``MainPage/Commands``.
+        .focusedSceneValue(
+            \.timelineCommands,
+            isSearching
+                ? nil
+                : Commands(
+                    panEarlier: model.panEarlier,
+                    panLater: model.panLater,
+                    jumpToStart: model.jumpToStart,
+                    jumpToNow: model.jumpToNow,
+                    selectPrevious: model.selectPreviousEvent,
+                    selectNext: model.selectNextEvent,
+                    canPanEarlier: model.canPanEarlier,
+                    canPanLater: model.canPanLater
+                )
+        )
+    }
+
+    /// The canvas, plus the two ways to pan it directly.
+    ///
+    /// Both are accelerators over the same intent the Timeline menu carries, so
+    /// neither is load-bearing on its own:
+    ///
+    /// - **← and →** while the timeline has focus. `onKeyPress` needs focus, so
+    ///   the canvas is focusable and shows a focus ring; the menu covers the
+    ///   case where it does not have focus.
+    /// - **Two-finger horizontal scroll**, which is what every comparable
+    ///   timeline uses and which nothing else on this page wants. Vertical
+    ///   scroll passes straight through — see ``ScrollWheelPan``.
+    private var canvas: some View {
+        TimelineCanvas(
+            events: model.visibleEvents,
+            window: model.window,
+            gaps: model.gaps,
+            trustBoundary: model.trustBoundary,
+            level: model.level,
+            selected: model.selected,
+            onSelect: { model.selected = $0 },
+            onZoomTo: model.zoom(to:)
+        )
+        .background(
+            GeometryReader { geo in
+                ScrollWheelPan { deltaX in
+                    // Points to seconds, through the width the canvas is
+                    // actually drawn at — the only place that number is known.
+                    //
+                    // Negated because the gesture moves the *content*: pushing
+                    // the history left with two fingers reports a negative
+                    // delta and means "show me later", which is a window that
+                    // starts further forward in time.
+                    let seconds = -Double(deltaX) / Double(max(geo.size.width, 1)) * model.window.span
+                    model.pan(bySeconds: seconds)
+                }
+            }
+        )
+        .focusable()
+        .onKeyPress(keys: [.leftArrow, .rightArrow]) { press in
+            // Bare arrows only. ⌥ steps the selection and ⌘ jumps to an end of
+            // the history; both are menu commands, and claiming their keys here
+            // would fire two things at once.
+            guard press.modifiers.isEmpty else { return .ignored }
+            if press.key == .leftArrow { model.panEarlier() } else { model.panLater() }
+            return .handled
+        }
+        .accessibilityLabel("Timeline. Left and right arrows pan through history.")
     }
 
     private var timelineHeader: some View {

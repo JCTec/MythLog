@@ -13,6 +13,10 @@ struct HeaderBar: View {
     var loaded: LoadedLedger?
     var onClose: (() -> Void)?
     @Binding var query: String
+    /// Whether this field has the keyboard. The page needs to know: the
+    /// Timeline menu's arrow-key commands stand down while a text field is
+    /// being edited, or ⌘← stops meaning "beginning of line" here.
+    @FocusState.Binding var queryFocus: Bool
 
     var body: some View {
         HStack(spacing: Metrics.space4) {
@@ -79,6 +83,7 @@ struct HeaderBar: View {
                 .font(.system(size: 11))
                 .foregroundStyle(Palette.textTertiary)
             TextField("Search this window", text: $query)
+                .focused($queryFocus)
                 .textFieldStyle(.plain)
                 .font(Typography.chip)
                 .foregroundStyle(Palette.textPrimary)
