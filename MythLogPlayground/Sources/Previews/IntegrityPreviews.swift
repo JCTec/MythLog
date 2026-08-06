@@ -15,7 +15,7 @@ private func fixture(_ integrity: IntegrityState) -> MockTimelineSource {
 // MARK: - The whole page, per state
 
 #Preview("Page — verified") {
-    MainPage(source: fixture(.verified(recordCount: MockLedger.totalRecords)), request: .forFixture)
+    MainPage(source: fixture(.verified(recordCount: MockLedger.totalRecords)), request: .fixtureRequest)
         .preferredColorScheme(.dark)
 }
 
@@ -23,27 +23,27 @@ private func fixture(_ integrity: IntegrityState) -> MockTimelineSource {
 /// once: a rule in the list, a shaded span on the timeline, and a strip at the
 /// top of the inspector when an untrusted record is selected.
 #Preview("Page — verification failed") {
-    MainPage(source: fixture(MockTimelineSource.brokenChain), request: .forFixture)
+    MainPage(source: fixture(MockTimelineSource.brokenChain), request: .fixtureRequest)
         .preferredColorScheme(.dark)
 }
 
 #Preview("Page — history truncated") {
     MainPage(
         source: fixture(.truncated(localRecords: MockLedger.totalRecords, anchoredRecords: MockLedger.totalRecords + 48)),
-        request: .forFixture
+        request: .fixtureRequest
     )
     .preferredColorScheme(.dark)
 }
 
 #Preview("Page — anchor offline") {
-    MainPage(source: fixture(.anchorOffline(recordCount: MockLedger.totalRecords)), request: .forFixture)
+    MainPage(source: fixture(.anchorOffline(recordCount: MockLedger.totalRecords)), request: .fixtureRequest)
         .preferredColorScheme(.dark)
 }
 
 #Preview("Page — ledger unreadable") {
     MainPage(
         source: fixture(.unreadable(reason: "The ledger file could not be opened: Operation not permitted.")),
-        request: .forFixture
+        request: .fixtureRequest
     )
     .preferredColorScheme(.dark)
 }

@@ -48,6 +48,10 @@ struct StorageLocations: Equatable, Sendable {
     var runtimeDirectory: URL { base.appendingPathComponent("runtime", isDirectory: true) }
     var spoolDirectory: URL { base.appendingPathComponent("spool", isDirectory: true) }
     var outboxDirectory: URL { base.appendingPathComponent("outbox", isDirectory: true) }
+
+    /// Where the recorder keeps the ledger HMAC key. Beside the ledger, so a
+    /// directory somebody copies is self-sufficient — see ``SecretStore``.
+    var secretsDirectory: URL { base.appendingPathComponent("secrets", isDirectory: true) }
     var logDirectory: URL { logBase.appendingPathComponent("MythLog", isDirectory: true) }
 
     private let logBase: URL

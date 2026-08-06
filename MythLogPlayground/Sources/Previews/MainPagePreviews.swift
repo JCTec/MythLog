@@ -15,7 +15,7 @@ import SwiftUI
 #Preview("Main page — force-quit gap") {
     MainPage(
         source: MockTimelineSource(gapWasGraceful: false),
-        request: .forFixture
+        request: .fixtureRequest
     )
     .preferredColorScheme(.dark)
 }
@@ -25,7 +25,7 @@ import SwiftUI
 #Preview("Main page — graceful stop") {
     MainPage(
         source: MockTimelineSource(gapWasGraceful: true),
-        request: .forFixture
+        request: .fixtureRequest
     )
     .preferredColorScheme(.dark)
 }
@@ -43,13 +43,4 @@ import SwiftUI
     }
     .padding()
     .background(Palette.canvas)
-}
-
-extension TimelineLoadRequest {
-    /// Matches the fixture's heartbeat interval, so gap detection over it
-    /// behaves exactly as it does over a real ledger — three missed heartbeats.
-    static var forFixture: TimelineLoadRequest {
-        TimelineLoadRequest(
-            gapThreshold: HeartbeatConfig(intervalSeconds: MockLedger.heartbeatInterval).gapThreshold)
-    }
 }

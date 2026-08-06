@@ -4,10 +4,22 @@ import SwiftUI
 struct MainPage: View {
     @State private var model: Model
 
-    /// The data source is injected, never reached for. The page cannot tell a
-    /// fixture from a real ledger, which is what keeps the design honest.
-    init(source: any TimelineSource, request: TimelineLoadRequest = TimelineLoadRequest()) {
+    /// What is loaded, so the header can always say so. The page still cannot
+    /// tell a fixture from a real ledger by looking at the *data* — which is
+    /// what keeps the design honest — it is simply told which it was handed.
+    private let loaded: LoadedLedger?
+    private let onClose: (() -> Void)?
+
+    /// The data source is injected, never reached for.
+    init(
+        source: any TimelineSource,
+        request: TimelineLoadRequest = TimelineLoadRequest(),
+        loaded: LoadedLedger? = nil,
+        onClose: (() -> Void)? = nil
+    ) {
         _model = State(initialValue: Model(source: source, request: request))
+        self.loaded = loaded
+        self.onClose = onClose
     }
 
     var body: some View {
@@ -17,6 +29,8 @@ struct MainPage: View {
                 integrity: model.integrity,
                 recordCount: model.snapshot.totalRecords,
                 since: model.snapshot.since,
+                loaded: loaded,
+                onClose: onClose,
                 query: $model.query
             )
         } filters: {

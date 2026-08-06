@@ -7,6 +7,11 @@ struct HeaderBar: View {
     var integrity: IntegrityState
     var recordCount: Int
     var since: String
+    /// Which ledger this is. Never hidden: an app that can show either a fixture
+    /// or somebody's real history must say which one is on screen, or a
+    /// screenshot of one can be mistaken for the other.
+    var loaded: LoadedLedger?
+    var onClose: (() -> Void)?
     @Binding var query: String
 
     var body: some View {
@@ -25,6 +30,8 @@ struct HeaderBar: View {
                 .font(Typography.chip)
                 .foregroundStyle(Palette.textSecondary)
 
+            if let loaded { sourceChip(loaded) }
+
             Spacer()
 
             LedgerStatusBadge(state: integrity)
@@ -32,6 +39,38 @@ struct HeaderBar: View {
             searchField
         }
         .frame(height: Metrics.headerHeight)
+    }
+
+    /// What is loaded, and the way back to the chooser.
+    ///
+    /// The fixture is marked differently from a real ledger on purpose. Both
+    /// look identical in a screenshot otherwise, and "is this real data?" is a
+    /// question a reader of that screenshot cannot otherwise answer.
+    private func sourceChip(_ loaded: LoadedLedger) -> some View {
+        let isFixture = !loaded.isRealHistory
+        return HStack(spacing: Metrics.space2) {
+            Image(systemName: isFixture ? "sparkles" : "shield.lefthalf.filled")
+                .font(.system(size: 10, weight: .medium))
+            Text(loaded.badge)
+                .font(Typography.caption)
+
+            if let onClose {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close this ledger and choose another")
+            }
+        }
+        .foregroundStyle(isFixture ? Palette.textTertiary : Palette.accent)
+        .pillSurface(
+            fill: isFixture ? Palette.surfaceRaised : Palette.accentDim,
+            stroke: isFixture ? Palette.border : Palette.accentBorder
+        )
+        .help(loaded.path ?? loaded.title)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Showing \(loaded.badge): \(loaded.title)")
     }
 
     private var searchField: some View {

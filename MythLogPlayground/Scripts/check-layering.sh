@@ -84,7 +84,10 @@ allowed_imports() {
     Config)       echo "" ;;
     Model)        echo "SwiftUI Observation" ;;    # view models: colours, symbols
     Mock)         echo "" ;;
-    DesignSystem) echo "SwiftUI Observation" ;;
+    # UniformTypeIdentifiers is the file-type vocabulary `.fileImporter` takes.
+    # It is a UI framework, not the engine, and the rule this list enforces is
+    # that the design system cannot reach into the engine.
+    DesignSystem) echo "SwiftUI Observation UniformTypeIdentifiers" ;;
     Previews)     echo "SwiftUI" ;;
     App)          echo "SwiftUI" ;;
     *)            echo "" ;;
