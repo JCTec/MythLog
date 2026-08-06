@@ -20,13 +20,19 @@ struct TimelineCanvas: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.space2) {
             GeometryReader { geo in
+                // Derived once and handed to both the bars and the hatching.
+                // Two computations of the same grid is how they drift apart, and
+                // it also spared thirty passes over the window's events.
+                let grid = BucketGrid(window: window)
+                let buckets = level == .events ? [] : grid.buckets(over: events)
+
                 ZStack(alignment: .topLeading) {
-                    gapOverlays(width: geo.size.width, height: geo.size.height)
+                    gapOverlays(marks: gapMarks(grid: grid, buckets: buckets, width: geo.size.width), size: geo.size)
                     untrustedOverlay(width: geo.size.width, height: geo.size.height)
 
                     switch level {
-                    case .density: density(size: geo.size)
-                    case .clusters: clusters(size: geo.size)
+                    case .density: density(size: geo.size, grid: grid, buckets: buckets)
+                    case .clusters: clusters(size: geo.size, grid: grid, buckets: buckets)
                     case .events: nodes(size: geo.size)
                     }
 
@@ -41,32 +47,58 @@ struct TimelineCanvas: View {
 
     // MARK: - Shared chrome
 
+    /// What to draw for the gaps at this level.
+    ///
+    /// The decision lives in ``CoverageGapLayout`` rather than here because it
+    /// is arithmetic over dates and buckets, and arithmetic that decides whether
+    /// the interface contradicts itself belongs somewhere a test can reach it
+    /// without a renderer.
+    ///
+    /// At Density and Clusters the marks are quantised to the same grid the bars
+    /// are drawn on. At Events there is no grid, so a real timestamp is the
+    /// honest position and the gap stays continuous.
+    private func gapMarks(
+        grid: BucketGrid, buckets: [BucketGrid.Bucket], width: CGFloat
+    ) -> [CoverageGapLayout.Mark] {
+        switch level {
+        case .density, .clusters:
+            return CoverageGapLayout.marks(for: gaps, on: grid, buckets: buckets)
+        case .events:
+            return CoverageGapLayout.marks(
+                for: gaps,
+                in: window,
+                minimumWidth: Double(Metrics.timelineGapMinimumWidth / max(1, width))
+            )
+        }
+    }
+
     /// Drawn beneath every level and never filterable. An absence of recording
     /// is not an event, so no filter may hide it.
     ///
     /// A real ledger has many gaps, not one — every restart after a crash leaves
     /// another. The fixture had exactly one, which is how this ended up
     /// singular.
-    private func gapOverlays(width: CGFloat, height: CGFloat) -> some View {
-        ForEach(gaps) { gap in
-            gapOverlay(gap, width: width, height: height)
+    private func gapOverlays(marks: [CoverageGapLayout.Mark], size: CGSize) -> some View {
+        ForEach(marks) { mark in
+            gapOverlay(mark, width: size.width, height: size.height)
         }
     }
 
     @ViewBuilder
-    private func gapOverlay(_ gap: CoverageGap, width: CGFloat, height: CGFloat) -> some View {
-        let l = window.fraction(of: gap.start)
-        let r = window.fraction(of: gap.end)
-        if r > 0, l < 1 {
-            let x = max(0, l) * width
-            let w = (min(1, r) - max(0, l)) * width
+    private func gapOverlay(_ mark: CoverageGapLayout.Mark, width: CGFloat, height: CGFloat) -> some View {
+        let height = height - Metrics.timelineAxisInset
+
+        switch mark.form {
+        case .region:
+            let x = mark.start * width
+            let w = (mark.end - mark.start) * width
             ZStack {
                 HatchFill()
                 Rectangle()
                     .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                     .foregroundStyle(Palette.textQuiet.opacity(0.7))
                 if w > 150 {
-                    Text(gap.label)
+                    Text(mark.label)
                         .font(Typography.caption)
                         .foregroundStyle(Palette.textSecondary)
                         .padding(.horizontal, Metrics.space3)
@@ -75,9 +107,19 @@ struct TimelineCanvas: View {
                         .overlay(Capsule().strokeBorder(Palette.border, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
                 }
             }
-            .frame(width: w, height: height - Metrics.timelineAxisInset)
+            .frame(width: w, height: height)
             .offset(x: x)
-            .accessibilityLabel(gap.label)
+            .accessibilityLabel(mark.label)
+
+        case .tick:
+            // Solid, not hatched: three points of diagonal lines is a smudge.
+            // The mark has to survive being small, which is the entire reason it
+            // is a mark and not a region. See `CoverageGapLayout.Mark.Form`.
+            RoundedRectangle(cornerRadius: 1)
+                .fill(Palette.textQuiet.opacity(0.75))
+                .frame(width: Metrics.timelineGapTickWidth, height: height)
+                .offset(x: mark.start * width - Metrics.timelineGapTickWidth / 2)
+                .accessibilityLabel(mark.label)
         }
     }
 

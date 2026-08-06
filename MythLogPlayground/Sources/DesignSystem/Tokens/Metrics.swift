@@ -30,6 +30,14 @@ enum Metrics {
     static let clusterBarWidth: CGFloat = 22
     static let clusterBarGap: CGFloat = 6
 
+    /// Below this, a coverage gap is drawn as a tick rather than as a hatched
+    /// region — hatching this narrow reads as an artefact, not as an absence.
+    /// It is never dropped; see ``CoverageGapLayout/Mark/Form``.
+    static let timelineGapMinimumWidth: CGFloat = 6
+    /// The tick a short gap becomes. Wide enough to survive a Retina hairline
+    /// and to be a target the eye lands on.
+    static let timelineGapTickWidth: CGFloat = 3
+
     // Event list.
     static let rowHeight: CGFloat = 32
     static let rowTimeWidth: CGFloat = 74

@@ -141,6 +141,87 @@ struct CoverageGapTests {
         #expect(CoverageAnalysis.gaps(in: events, threshold: slow).isEmpty)
     }
 
+    // MARK: - The configured threshold is a claim, the ledger is the evidence
+
+    @Test("a ledger whose heartbeats are slower than the config claims is not carved into gaps")
+    func measuredCadenceRaisesATooTightThreshold() {
+        // What a hand-opened ledger gets: no config.json beside it, so
+        // `LedgerDiscovery` falls back to 60 s and a 180 s threshold — while the
+        // records demonstrate a heartbeat every ten minutes. Every ordinary
+        // quiet stretch in this ledger is longer than the threshold.
+        var events = [TimelineEvent]()
+        var record = 1
+        for step in stride(from: 0.0, through: 200.0, by: 10) {
+            events.append(
+                TimelineEvent(
+                    record: record, at: base.addingTimeInterval(step * 60), kind: .health,
+                    label: "Recorder heartbeat", detail: "nominal",
+                    source: "agent", payloadKind: "agent.agent.heartbeat"))
+            record += 1
+        }
+
+        #expect(CoverageAnalysis.observedHeartbeatInterval(in: events) == 600)
+        #expect(CoverageAnalysis.effectiveThreshold(configured: threshold, events: events) == 1800)
+        #expect(
+            CoverageAnalysis.gaps(in: events, threshold: threshold).isEmpty,
+            "a guessed 180 s threshold turned an unremarkable ledger into a wall of gaps")
+    }
+
+    @Test("raising the threshold does not blind it to a real outage")
+    func measuredCadenceStillFindsTheOutage() {
+        var events = [TimelineEvent]()
+        var record = 1
+        for step in stride(from: 0.0, through: 200.0, by: 10) where !(60...140).contains(step) {
+            events.append(
+                TimelineEvent(
+                    record: record, at: base.addingTimeInterval(step * 60), kind: .health,
+                    label: "Recorder heartbeat", detail: "nominal",
+                    source: "agent", payloadKind: "agent.agent.heartbeat"))
+            record += 1
+        }
+
+        // The median ignores the outage that interrupts the sequence, which is
+        // the reason it is a median: a mean would let a four-hour silence raise
+        // the threshold until it stopped being detectable.
+        #expect(CoverageAnalysis.observedHeartbeatInterval(in: events) == 600)
+        let gaps = CoverageAnalysis.gaps(in: events, threshold: threshold)
+        #expect(gaps.count == 1)
+        // Last heartbeat at minute 50, first after at minute 150 — the gap runs
+        // between the records that bound it, not between the missing beats.
+        // Explicitly a `TimeInterval`: `100 * 60` on its own is typed as `Int`,
+        // and comparing it to an optional `Double` bridges both through
+        // `AnyHashable` — which compiles, and is false whatever the values are.
+        #expect(gaps.first?.duration == TimeInterval(100 * 60))
+    }
+
+    @Test("a configured threshold is never lowered by the records")
+    func measuredCadenceOnlyEverRaises() {
+        // Heartbeats every 60 s, and a user who configured a ten-minute
+        // interval. Their 1800 s stands: they are entitled to have three of
+        // their own missed beats taken seriously.
+        let events = heartbeats(fromMinute: 0, toMinute: 60, startingAt: 1)
+        let slow = HeartbeatConfig(intervalSeconds: 600).gapThreshold
+        #expect(CoverageAnalysis.effectiveThreshold(configured: slow, events: events) == slow)
+    }
+
+    @Test("a ledger with no heartbeats cannot be measured, and says so by declining to guess")
+    func noHeartbeatsMeansNoMeasurement() {
+        let events = (0..<10).map {
+            event(minute: Double($0) * 5, record: $0 + 1, payloadKind: "apps.app.launched")
+        }
+        #expect(CoverageAnalysis.observedHeartbeatInterval(in: events) == nil)
+        #expect(CoverageAnalysis.effectiveThreshold(configured: threshold, events: events) == threshold)
+    }
+
+    @Test("a heartbeat is recognised however the recorder qualified its name")
+    func heartbeatsAreRecognisedFromEitherVocabulary() {
+        // The shipping recorder writes `source.name` as `agent.agent.heartbeat`;
+        // the fixture writes `agent.heartbeat`. Both are heartbeats.
+        #expect(CoverageAnalysis.isHeartbeat(event(minute: 0, record: 1, payloadKind: "agent.heartbeat")))
+        #expect(CoverageAnalysis.isHeartbeat(event(minute: 0, record: 1, payloadKind: "agent.agent.heartbeat")))
+        #expect(!CoverageAnalysis.isHeartbeat(event(minute: 0, record: 1, payloadKind: "apps.app.launched")))
+    }
+
     @Test("fewer than two records cannot establish a gap")
     func degenerateInputs() {
         #expect(CoverageAnalysis.gaps(in: [], threshold: threshold).isEmpty)

@@ -87,6 +87,36 @@ struct CoverageGap: Equatable, Sendable, Identifiable {
 /// detail attached to a gap that was already detected, never the thing that
 /// detected it.
 ///
+/// # The configured cadence is a claim; the ledger is the evidence
+///
+/// The threshold arrives from `config.json`, and often that config is not there
+/// to arrive from. `LedgerDiscovery` falls back to `HeartbeatConfig()` — 60 s,
+/// so 180 s of silence — for any ledger opened by hand rather than auto-detected
+/// beside its config, which is most of them.
+///
+/// A default is a guess, and a guess this tight fabricates gaps. Measured
+/// against this repository's own shipping-ledger fixture, which has no
+/// `config.json`: its heartbeats are 1096 s apart and its median record spacing
+/// is 137 s, against a threshold of 180 s. Every ordinary quiet stretch in it is
+/// within a rounding error of being reported as "the recorder was not running".
+/// That is what produced clusters of short gaps with recorded events sitting
+/// between them — and no amount of tidying the hatching would have made those
+/// gaps true.
+///
+/// So the ledger gets a say. ``observedHeartbeatInterval(in:)`` measures the
+/// cadence the records actually demonstrate, and the effective threshold is the
+/// larger of the two. Raising it can only ever withdraw a claim that the ledger
+/// could not support: if heartbeats really arrive every eighteen minutes, a
+/// four-minute silence is not evidence of anything. The configured value is
+/// never lowered — a user who says their recorder beats every 60 s is entitled
+/// to have three missed beats taken seriously.
+///
+/// A ledger with no heartbeat records at all cannot be measured, and then the
+/// configured threshold stands. That case deserves better than it gets here:
+/// with heartbeats disabled there is no floor under legitimate silence at all,
+/// so silence proves nothing and gap detection is not really possible. See the
+/// note in `README.md`.
+///
 /// # Why this is synchronous
 ///
 /// It is a single pass over an array already in memory. The `async` work is the
@@ -101,19 +131,56 @@ enum CoverageAnalysis {
         "agent.stopped", "agent.stopping", "health.stop", "session.willPowerOff",
     ]
 
+    /// Whether a record is a heartbeat.
+    ///
+    /// Matched on the last component of ``TimelineEvent/payloadKind``, which is
+    /// `source.name` from the ledger: the shipping recorder writes
+    /// `agent.agent.heartbeat` and the fixture writes `agent.heartbeat`. What
+    /// they have in common is the only part worth matching on.
+    static func isHeartbeat(_ event: TimelineEvent) -> Bool {
+        event.payloadKind.split(separator: ".").last == "heartbeat"
+    }
+
+    /// The heartbeat cadence the ledger actually demonstrates, or `nil` when it
+    /// does not demonstrate one.
+    ///
+    /// The **median** interval, not the mean: a heartbeat sequence interrupted
+    /// by a genuine four-hour outage contains one enormous interval, and a mean
+    /// would let that outage raise the threshold until it stopped being
+    /// detectable. The median ignores it, which is the whole reason to use one.
+    ///
+    /// Three heartbeats — two intervals — is the minimum that can be called a
+    /// cadence. Below that, `nil`.
+    static func observedHeartbeatInterval(in events: [TimelineEvent]) -> TimeInterval? {
+        let beats = events.filter(isHeartbeat).map(\.at).sorted()
+        guard beats.count >= 3 else { return nil }
+
+        let intervals = zip(beats, beats.dropFirst())
+            .map { $1.timeIntervalSince($0) }
+            .filter { $0 > 0 }
+            .sorted()
+        guard !intervals.isEmpty else { return nil }
+
+        return intervals[intervals.count / 2]
+    }
+
     /// - Parameters:
     ///   - events: in ascending time order. The loader guarantees this because
     ///     the ledger is append-only.
     ///   - threshold: how long a silence must be before it counts. Comes from
     ///     the config's heartbeat interval, not from a constant here — a user
-    ///     who slowed their heartbeat down changed what "too quiet" means.
+    ///     who slowed their heartbeat down changed what "too quiet" means. It is
+    ///     a floor, not the final word: see the type's doc comment for why the
+    ///     ledger's own measured cadence can raise it.
     static func gaps(in events: [TimelineEvent], threshold: TimeInterval) -> [CoverageGap] {
         guard threshold > 0, events.count > 1 else { return [] }
+
+        let effective = effectiveThreshold(configured: threshold, events: events)
 
         var gaps = [CoverageGap]()
         for (previous, next) in zip(events, events.dropFirst()) {
             let silence = next.at.timeIntervalSince(previous.at)
-            guard silence > threshold else { continue }
+            guard silence > effective else { continue }
 
             gaps.append(
                 CoverageGap(
@@ -127,6 +194,17 @@ enum CoverageAnalysis {
                 ))
         }
         return gaps
+    }
+
+    /// The threshold actually applied: the configured one, or three of the
+    /// ledger's own observed heartbeat intervals when those are longer.
+    ///
+    /// The multiplier is ``HeartbeatConfig/missedHeartbeatsForGap``, reused
+    /// rather than repeated — "three missed heartbeats" must mean the same thing
+    /// whether the interval came from a config file or from the records.
+    static func effectiveThreshold(configured: TimeInterval, events: [TimelineEvent]) -> TimeInterval {
+        guard let observed = observedHeartbeatInterval(in: events) else { return configured }
+        return max(configured, HeartbeatConfig(intervalSeconds: observed).gapThreshold)
     }
 
     /// The gaps that overlap `window`, for the views that draw them. A gap that

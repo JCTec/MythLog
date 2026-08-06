@@ -1,34 +1,6 @@
 import SwiftUI
 
 extension TimelineCanvas {
-    /// A bucket of events, shared by the density and cluster renderers.
-    struct Bucket: Identifiable {
-        var id: Int
-        var start: Date
-        var count: Int
-        var byKind: [EventKind: Int]
-    }
-
-    /// Buckets sized so roughly 30 fit the window, snapped to sane steps.
-    var buckets: [Bucket] {
-        let steps: [TimeInterval] = [60, 120, 300, 600, 900, 1800, 3600, 7200]
-        let step = steps.first { window.span / $0 <= 30 } ?? 7200
-        let base = (window.start.timeIntervalSince1970 / step).rounded(.down) * step
-        var out: [Bucket] = []
-        var index = 0
-        var t = base
-        while t < window.end.timeIntervalSince1970 {
-            let s = Date(timeIntervalSince1970: t)
-            let e = Date(timeIntervalSince1970: t + step)
-            let inBucket = events.filter { $0.at >= s && $0.at < e }
-            var byKind: [EventKind: Int] = [:]
-            for event in inBucket { byKind[event.kind, default: 0] += 1 }
-            out.append(Bucket(id: index, start: s, count: inBucket.count, byKind: byKind))
-            index += 1
-            t += step
-        }
-        return out
-    }
 
     /// Square-root scaling. A 312-event burst next to 3-event buckets would
     /// flatten everything else to nothing on a linear scale; √ keeps the small
@@ -38,39 +10,66 @@ extension TimelineCanvas {
         return Swift.max(6, (sqrt(Double(count)) / sqrt(Double(max))) * available)
     }
 
+    /// Where a bucket's bar is drawn, in points.
+    ///
+    /// Every bar position in this file comes from here, and here comes from
+    /// ``BucketGrid/slot(_:)`` — the same projection the gap overlay uses. That
+    /// is what makes hatch edges land on bar edges instead of near them.
+    ///
+    /// The bars used to be laid out in an `HStack` of equal slots, which is a
+    /// layout in *slot* space rather than in time. See ``BucketGrid`` for what
+    /// that cost.
+    private func bar(_ index: Int, grid: BucketGrid, width: CGFloat) -> (x: CGFloat, width: CGFloat) {
+        let slot = grid.slot(index)
+        let left = slot.lowerBound * width
+        let full = (slot.upperBound - slot.lowerBound) * width
+        // The gutter is taken out of the slot, half from each side, so the bar
+        // stays centred on its own span of time.
+        return (left + Metrics.clusterBarGap / 2, max(1, full - Metrics.clusterBarGap))
+    }
+
     // MARK: - Density
 
     @ViewBuilder
-    func density(size: CGSize) -> some View {
-        let list = buckets
-        let peak = list.map(\.count).max() ?? 1
+    func density(size: CGSize, grid: BucketGrid, buckets: [BucketGrid.Bucket]) -> some View {
+        let peak = buckets.map(\.count).max() ?? 1
         let available = size.height - Metrics.timelineAxisInset - Metrics.space2
-        HStack(alignment: .bottom, spacing: 3) {
-            ForEach(list) { bucket in
+
+        ZStack(alignment: .bottomLeading) {
+            ForEach(buckets) { bucket in
+                let frame = bar(bucket.id, grid: grid, width: size.width)
                 Button { onZoomTo(bucket.start) } label: {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(Palette.textQuiet.opacity(0.75))
-                        .frame(height: barHeight(bucket.count, max: peak, available: available))
-                        .frame(maxWidth: .infinity, alignment: .bottom)
+                        .frame(
+                            width: frame.width,
+                            height: barHeight(bucket.count, max: peak, available: available)
+                        )
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .offset(x: frame.x)
                 .accessibilityLabel("\(bucket.count) events at \(bucket.start.clockText)")
             }
         }
-        .frame(height: size.height - Metrics.timelineAxisInset, alignment: .bottom)
+        .frame(width: size.width, height: size.height - Metrics.timelineAxisInset, alignment: .bottomLeading)
     }
 
     // MARK: - Clusters
 
     @ViewBuilder
-    func clusters(size: CGSize) -> some View {
-        let list = buckets
-        let peak = list.map(\.count).max() ?? 1
+    func clusters(size: CGSize, grid: BucketGrid, buckets: [BucketGrid.Bucket]) -> some View {
+        let peak = buckets.map(\.count).max() ?? 1
         let available = size.height - Metrics.timelineAxisInset - 18
-        HStack(alignment: .bottom, spacing: Metrics.clusterBarGap) {
-            ForEach(list) { bucket in
+
+        ZStack(alignment: .bottomLeading) {
+            ForEach(buckets) { bucket in
+                let frame = bar(bucket.id, grid: grid, width: size.width)
                 VStack(spacing: 3) {
+                    // Constrained to the bar's own width rather than
+                    // `.fixedSize()`: the clock-aligned grid makes the two edge
+                    // buckets narrow, and a count that refused to shrink would
+                    // sit on top of its neighbour's.
                     Text(bucket.count > 0 ? "\(bucket.count)" : "")
                         .font(Typography.clusterCount)
                         .foregroundStyle(Palette.textQuiet)
@@ -86,15 +85,17 @@ extension TimelineCanvas {
                             }
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 2))
-                        .frame(maxWidth: .infinity)
+                        .frame(width: frame.width)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
+                .frame(width: frame.width)
+                .offset(x: frame.x)
                 .accessibilityLabel("\(bucket.count) events at \(bucket.start.clockText)")
             }
         }
-        .frame(height: size.height - Metrics.timelineAxisInset, alignment: .bottom)
+        .frame(width: size.width, height: size.height - Metrics.timelineAxisInset, alignment: .bottomLeading)
     }
 
     // MARK: - Events

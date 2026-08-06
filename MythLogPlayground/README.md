@@ -141,6 +141,53 @@ One component, three renderers — `TimelineCanvas` plus
 The level is chosen from span **and** population, so zooming into a burst stays
 clustered rather than exploding into overlap.
 
+### Gaps are drawn on the same grid as the bars
+
+At Density and Clusters both the bars and the coverage-gap hatching are
+positioned by `BucketGrid` — one projection, so hatch edges land on bar edges
+rather than near them. Before that, bars were laid out in an `HStack` (a layout
+in slot space, not on the time axis) while the overlay used a continuous
+fraction of the window, and the two agreed only by accident.
+
+`CoverageGapLayout` then decides what a gap *looks like*, which is not the same
+as what it is:
+
+- **A bucket is wholly in a gap or wholly out of one.** A bucket is hatched only
+  when it lies entirely inside a gap and draws no bars. **A bucket with a
+  non-zero count is never inside a gap** — a gap means nothing was recorded, so
+  the two cannot overlap. Asserted over the fixture and over generated ledgers
+  in `TimelineGapLayoutTests`.
+- **Near-adjacent gaps are coalesced** — merged when they are closer together
+  than one bucket, since a division the grid cannot draw is one it should not
+  imply. The `CoverageGap` values are carried through untouched: the banner
+  cites their real ordinals, and a merged pair is still a pair.
+- **A gap too small to hatch becomes a tick, never nothing.** Below one bucket
+  the grid cannot support a claim about a *span*, but the data still supports a
+  claim about a *point*. A gap is never dropped for being small — that would
+  hide exactly the brief interruption someone is looking for.
+
+At Events level there is no grid, so gaps stay continuous: a real timestamp is
+the honest position.
+
+### What counts as too quiet
+
+The threshold is three missed heartbeats, from `heartbeat.intervalSeconds` in
+the ledger's `config.json`. When there is no config beside the ledger — which is
+every ledger opened by hand — that fell back to 60 s, so 180 s of silence, and
+that guess fabricates gaps: the shipping fixture's own heartbeats are 1096 s
+apart, and its median record spacing is 137 s.
+
+So the ledger gets a say. `CoverageAnalysis` measures the heartbeat cadence the
+records actually demonstrate and takes the larger of the two thresholds. The
+configured value is never lowered; raising it only ever withdraws a claim the
+ledger could not support.
+
+**Known limitation.** A ledger with `heartbeat.enabled: false` has no floor under
+legitimate silence at all, so silence proves nothing and gap detection is not
+really possible over it — but the configured threshold still applies and will
+report ordinary quiet stretches as gaps. `ConfigValidation` warns about the
+setting; the analysis does not yet act on it.
+
 Zoom is never gesture-only: ⌘+ / ⌘− / ⌘0, the +/− buttons, the range presets, and
 click-a-bar all do it. Gestures are not keyboard-reachable and not operable under
 VoiceOver, so they can only ever be an accelerator.
