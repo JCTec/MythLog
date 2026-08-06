@@ -47,6 +47,9 @@ struct AnchorChoice: Identifiable, Equatable, Sendable {
     /// it. Exactly one choice should be.
     var isDefault: Bool
 
+    /// Whether this choice is meaningless without a folder being picked.
+    var needsAFolder: Bool { kind == .directory }
+
     /// The schema value onto the platform's own vocabulary.
     ///
     /// This mapping is the reason `Model/` exists: `Config/` owns what is

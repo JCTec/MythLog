@@ -12,6 +12,7 @@ import SwiftUI
     AnchorSettingsPage(
         model: AnchorSettingsPage.Model(
             settings: AnchorSettings(isEnabled: true, choice: .iCloudDrive),
+            store: .previewOnly,
             locations: StaticAnchorLocationDescription(answers: [
                 AnchorChoice.iCloudDrive.id: "/Users/example/Library/Mobile Documents/com~apple~CloudDocs/MythLog",
                 AnchorChoice.chosenFolder.id: "No anchor directory has been chosen.",
@@ -30,6 +31,7 @@ import SwiftUI
         model: AnchorSettingsPage.Model(
             settings: AnchorSettings(
                 isEnabled: true, choice: .chosenFolder, chosenDirectory: "/Volumes/KEY/MythLog"),
+            store: .previewOnly,
             locations: StaticAnchorLocationDescription(answers: [
                 AnchorChoice.iCloudDrive.id: "/Users/example/Library/Mobile Documents/com~apple~CloudDocs/MythLog",
                 AnchorChoice.chosenFolder.id: "/Volumes/KEY/MythLog",
@@ -47,6 +49,7 @@ import SwiftUI
     AnchorSettingsPage(
         model: AnchorSettingsPage.Model(
             settings: AnchorSettings(isEnabled: true, choice: .iCloudDrive),
+            store: .previewOnly,
             locations: AnchorLocationDescription(
                 locations: AnchorLocations(
                     environment: .sandboxed(),
@@ -64,6 +67,7 @@ import SwiftUI
     AnchorSettingsPage(
         model: AnchorSettingsPage.Model(
             settings: AnchorSettings(isEnabled: false, choice: .iCloudDrive),
+            store: .previewOnly,
             locations: StaticAnchorLocationDescription(answers: [:])
         )
     )
@@ -87,4 +91,13 @@ import SwiftUI
     .frame(width: 760)
     .background(Palette.canvas)
     .preferredColorScheme(.dark)
+}
+
+extension AnchorSettingsStore {
+    /// A store pointed at nowhere, so a preview can never write to the real
+    /// install on the machine rendering it. Saving reports "nowhere to save",
+    /// which is also a state worth seeing.
+    static var previewOnly: AnchorSettingsStore {
+        AnchorSettingsStore(locations: nil)
+    }
 }

@@ -23,6 +23,9 @@ struct AnchorChoiceCard: View {
     var isSelected: Bool
     var resolvedLocation: String
     var onSelect: () -> Void
+    /// Present only on the choice that needs a folder. `nil` elsewhere, so the
+    /// button cannot appear on a card where it would mean nothing.
+    var onChooseFolder: (() -> Void)?
 
     var body: some View {
         Button(action: onSelect) {
@@ -44,11 +47,22 @@ struct AnchorChoiceCard: View {
                     visibility(warning)
                 }
 
-                Text(resolvedLocation)
-                    .font(Typography.hash)
-                    .foregroundStyle(Palette.textQuiet)
-                    .lineLimit(2)
-                    .truncationMode(.middle)
+                HStack(alignment: .firstTextBaseline, spacing: Metrics.space3) {
+                    Text(resolvedLocation)
+                        .font(Typography.hash)
+                        .foregroundStyle(Palette.textQuiet)
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+
+                    Spacer(minLength: 0)
+
+                    if let onChooseFolder {
+                        Button("Choose folder…", action: onChooseFolder)
+                            .buttonStyle(.link)
+                            .font(Typography.caption)
+                            .fixedSize()
+                    }
+                }
             }
             .padding(Metrics.space4)
             .frame(maxWidth: .infinity, alignment: .leading)

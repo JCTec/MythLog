@@ -191,3 +191,93 @@ struct DiagnosticsTests {
         #expect(Diagnostics.subsystem == "com.jctec.mythlog.diagnostics")
     }
 }
+
+/// A viewer looking for somebody else's install cannot assume they share a
+/// sandbox. This app is unsandboxed; the recorder people actually have is not.
+@Suite("Finding an install that is not ours")
+struct InstalledCandidateTests {
+
+    private let home = URL(fileURLWithPath: "/Users/example", isDirectory: true)
+
+    @Test("the App Group container is checked first, the Library layout second")
+    func containerComesFirst() {
+        let containerURL = URL(fileURLWithPath: "/Users/example/Library/Group Containers/TEAM.shared")
+        let candidates = StorageLocations.installedCandidates(
+            container: .fixed(containerURL), home: home)
+
+        #expect(candidates.count == 2)
+        // A sandboxed recorder is the shipping configuration, so its location is
+        // the one worth checking first.
+        #expect(candidates[0].origin == .appGroupContainer(group: SharedContainer.groupIdentifier))
+        #expect(candidates[0].base.path.hasPrefix(containerURL.path))
+        #expect(candidates[1].origin == .userLibrary)
+        #expect(candidates[1].base.path == "/Users/example/Library/Application Support/MythLog")
+    }
+
+    @Test("an unresolvable container still leaves the Library layout to check")
+    func containerUnavailableStillOffersLibrary() {
+        let candidates = StorageLocations.installedCandidates(container: .unavailable, home: home)
+        #expect(candidates.count == 1)
+        #expect(candidates[0].origin == .userLibrary)
+    }
+
+    /// The regression this exists for: the install is in the App Group
+    /// container, the viewer is unsandboxed, and `resolve` alone would look only
+    /// at `~/Library` and report an absence that is not there.
+    @Test("an install in the container is found by an unsandboxed viewer")
+    func containerInstallIsFoundFromUnsandboxed() throws {
+        let temporary = try TemporaryDirectory()
+        let containerURL = temporary.appendingPathComponent("GroupContainer")
+        let installed = containerURL
+            .appendingPathComponent("Application Support", isDirectory: true)
+            .appendingPathComponent("MythLog", isDirectory: true)
+        try FileManager.default.createDirectory(at: installed, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: installed.appendingPathComponent("config.json"))
+
+        // Resolving our own convention finds nothing…
+        let ourOwn = try StorageLocations.resolve(environment: .unsandboxed, home: temporary.url)
+        #expect(!FileManager.default.fileExists(atPath: ourOwn.configURL.path))
+
+        // …but looking at every plausible location finds the real install.
+        let found = StorageLocations.firstInstalled(
+            containing: \.configURL, container: .fixed(containerURL), home: temporary.url)
+        #expect(found?.base.path == installed.path)
+        #expect(found?.origin == .appGroupContainer(group: SharedContainer.groupIdentifier))
+    }
+
+    @Test("nothing installed anywhere is nil, not a guess")
+    func nothingInstalled() throws {
+        let temporary = try TemporaryDirectory()
+        #expect(
+            StorageLocations.firstInstalled(
+                containing: \.configURL, container: .unavailable, home: temporary.url) == nil)
+    }
+
+    @Test("the marker decides which install counts")
+    func markerSelectsTheInstall() throws {
+        let temporary = try TemporaryDirectory()
+        // A container with a ledger but no config, and a Library with a config
+        // but no ledger. Which one is "installed" depends on what you are
+        // looking for, which is why the caller says.
+        let containerURL = temporary.appendingPathComponent("GroupContainer")
+        let containerBase = containerURL
+            .appendingPathComponent("Application Support", isDirectory: true)
+            .appendingPathComponent("MythLog", isDirectory: true)
+        try FileManager.default.createDirectory(at: containerBase, withIntermediateDirectories: true)
+        try Data("{}\n".utf8).write(to: containerBase.appendingPathComponent("events.jsonl"))
+
+        let libraryBase = temporary.url
+            .appendingPathComponent("Library/Application Support/MythLog", isDirectory: true)
+        try FileManager.default.createDirectory(at: libraryBase, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: libraryBase.appendingPathComponent("config.json"))
+
+        #expect(
+            StorageLocations.firstInstalled(
+                containing: \.ledgerURL, container: .fixed(containerURL), home: temporary.url)?
+                .base.path == containerBase.path)
+        #expect(
+            StorageLocations.firstInstalled(
+                containing: \.configURL, container: .fixed(containerURL), home: temporary.url)?
+                .base.path == libraryBase.path)
+    }
+}

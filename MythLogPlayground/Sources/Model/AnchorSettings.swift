@@ -26,11 +26,11 @@ struct AnchorSettings: Equatable, Sendable {
         self.chosenDirectory = chosenDirectory
     }
 
-    init(config: HashAnchorConfig) {
+    init(config anchor: HashAnchorConfig) {
         self.init(
-            isEnabled: config.enabled,
-            choice: .choice(for: config.destination),
-            chosenDirectory: config.directory
+            isEnabled: anchor.enabled,
+            choice: .choice(for: anchor.destination),
+            chosenDirectory: anchor.directory
         )
     }
 }

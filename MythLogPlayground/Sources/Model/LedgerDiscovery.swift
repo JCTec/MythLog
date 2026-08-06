@@ -42,8 +42,12 @@ struct LedgerDiscovery: Sendable {
     /// path that resolves is not the same as a ledger that exists, and offering
     /// to open nothing is how the 1.0.0 bug felt from the outside.
     func installedLedger(fileManager: FileManager = FileManager()) -> LedgerCandidate? {
-        guard let locations = try? StorageLocations.resolve(
-            environment: environment, container: container)
+        // Every plausible location, not just the one this process would use.
+        // This app is unsandboxed and the recorder people have is not, so
+        // resolving only our own convention finds nothing on a Mac with a
+        // perfectly good install — see ``StorageLocations/installedCandidates(container:home:)``.
+        guard let locations = StorageLocations.firstInstalled(
+            containing: \.ledgerURL, container: container, fileManager: fileManager)
         else {
             return nil
         }

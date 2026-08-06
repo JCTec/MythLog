@@ -85,9 +85,11 @@ allowed_imports() {
     Model)        echo "SwiftUI Observation" ;;    # view models: colours, symbols
     Mock)         echo "" ;;
     # UniformTypeIdentifiers is the file-type vocabulary `.fileImporter` takes.
-    # It is a UI framework, not the engine, and the rule this list enforces is
-    # that the design system cannot reach into the engine.
-    DesignSystem) echo "SwiftUI Observation UniformTypeIdentifiers" ;;
+    # AppKit is needed for `NSOpenPanel`, whose `message` is the only way to put
+    # the anchor visibility warning inside the folder picker itself — see
+    # `FolderChooser`. Both are UI frameworks, and the rule this list enforces is
+    # that the design system cannot reach into the *engine*.
+    DesignSystem) echo "SwiftUI Observation UniformTypeIdentifiers AppKit" ;;
     Previews)     echo "SwiftUI" ;;
     App)          echo "SwiftUI" ;;
     *)            echo "" ;;

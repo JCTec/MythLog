@@ -155,24 +155,36 @@ is still hard-coded — this app reads ledgers, it does not run one. The config
 schema carries those sections and round-trips them untouched, but nothing
 interprets them.
 
-**Anchoring is groundwork only.** `AnchorDestination` is a protocol with both
-shipped destinations behind it, so new ones are additive — but no new destination
-exists. Telegram, git, OpenTimestamps and a remote server are phases 4–6 in
-`docs/ANCHOR_DESTINATIONS.md` and are not built. The settings page shows and
-changes the choice in memory; it does not write `config.json`, because the
-recorder owns that file.
+**No new anchor destinations.** `AnchorDestination` is a protocol with both
+shipped destinations behind it, so new ones are additive — but none has been
+added. Telegram, git, OpenTimestamps and a remote server are phases 4–6 in
+`docs/ANCHOR_DESTINATIONS.md` and are not built.
 
-**Nothing writes config or ledgers outside tests.** Choosing an anchor folder
-needs a picker and a config-writing path, and neither exists.
+**The recorder is not restarted after a config change.** Saving writes
+`config.json`; a recorder already running keeps the copy it read at startup until
+it restarts, and the page says so rather than pretending otherwise. Restarting it
+is launch-agent lifecycle, which is Wave 7. The shipping app does this with
+`SMAppService`; this one cannot.
+
+**"A folder you choose" may not be shippable in the App Store edition.** A
+security-scoped bookmark held by this viewer grants access to *this viewer*, and
+anchors are written by the recorder — a separate process in its own container.
+The full analysis, including what would have to change, is in
+`docs/CONFIG_OWNERSHIP.md`. It is unresolved and it decides whether that option
+can ship sandboxed at all.
+
+**Ledgers are still read-only.** Nothing here appends to a ledger outside tests.
 
 **Multiple simultaneous anchors** (phase 3) are not built, so there is no answer
 yet for two destinations disagreeing — which is the interesting case, since stale
 and truncated look identical at a glance and mean opposite things.
 
 **Sandboxing.** The app is deliberately unsandboxed, which is why it can read the
-App Group container and open any file the user picks. A sandboxed build would
-need the App Groups entitlement for auto-detect and security-scoped bookmarks for
-the picker. Noted in `LedgerDiscovery`.
+App Group container, open any file the user picks, and write to a folder chosen
+in the panel. A sandboxed build would need the App Groups entitlement for
+auto-detect and security-scoped bookmarks for the picker — and, for anchors,
+those bookmarks handed to the recorder rather than kept here. Noted in
+`LedgerDiscovery` and `docs/CONFIG_OWNERSHIP.md`.
 
 **Interface.** Pinch (`ctrl`-scroll magnification) is not wired; keyboard and
 buttons are. Level changes snap; whether they should cross-fade is an open

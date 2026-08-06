@@ -96,6 +96,80 @@ struct StorageLocations: Equatable, Sendable {
         )
     }
 
+    /// Every place an install could be, most likely first.
+    ///
+    /// # A viewer cannot assume the recorder shares its sandbox
+    ///
+    /// ``resolve(environment:container:home:)`` answers "where do *my* files
+    /// go". That is the right question for a process reading its own state and
+    /// the wrong one for a process looking for somebody else's install — which
+    /// is what this app does.
+    ///
+    /// This playground is unsandboxed, so `resolve` returns `~/Library/…`. The
+    /// recorder people actually have is the App Store build, which *is*
+    /// sandboxed and writes to the App Group container. Asking only our own
+    /// convention finds nothing and reports "no install", on a Mac with a
+    /// perfectly good one.
+    ///
+    /// That is the 1.0.0 bug pointed the other way: not a wrong path taken for a
+    /// right one, but a right path never looked at. Both have the same symptom —
+    /// a viewer confidently reporting an absence that is not there.
+    ///
+    /// The App Group container comes first because a sandboxed recorder is the
+    /// shipping configuration; the Library layout is the historical unsandboxed
+    /// one and is checked second.
+    static func installedCandidates(
+        container: SharedContainer = .system,
+        home: URL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+    ) -> [StorageLocations] {
+        var candidates = [StorageLocations]()
+
+        // Resolvable from an unsandboxed process too: macOS hands back
+        // `~/Library/Group Containers/<group>` without requiring the entitlement
+        // to *read* it, which is exactly why this app can do its job at all.
+        if let containerURL = try? container.url() {
+            candidates.append(
+                StorageLocations(
+                    base: containerURL
+                        .appendingPathComponent("Application Support", isDirectory: true)
+                        .appendingPathComponent("MythLog", isDirectory: true),
+                    logBase: containerURL
+                        .appendingPathComponent("Library", isDirectory: true)
+                        .appendingPathComponent("Logs", isDirectory: true),
+                    origin: .appGroupContainer(group: SharedContainer.groupIdentifier)
+                ))
+        }
+
+        let library = home.appendingPathComponent("Library", isDirectory: true)
+        candidates.append(
+            StorageLocations(
+                base: library
+                    .appendingPathComponent("Application Support", isDirectory: true)
+                    .appendingPathComponent("MythLog", isDirectory: true),
+                logBase: library.appendingPathComponent("Logs", isDirectory: true),
+                origin: .userLibrary
+            ))
+
+        return candidates
+    }
+
+    /// The first candidate location that actually has something in it.
+    ///
+    /// - Parameter marker: the file whose presence means "an install lives
+    ///   here" — the ledger when looking for history, the config when looking
+    ///   for settings. They can be in different places when someone has moved
+    ///   one by hand, and guessing which to test for would be a third resolution
+    ///   rule.
+    static func firstInstalled(
+        containing marker: (StorageLocations) -> URL,
+        container: SharedContainer = .system,
+        home: URL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true),
+        fileManager: FileManager = FileManager()
+    ) -> StorageLocations? {
+        installedCandidates(container: container, home: home)
+            .first { fileManager.fileExists(atPath: marker($0).path) }
+    }
+
     /// The iCloud Drive folder an unsandboxed build writes anchors into — the
     /// one visible in Finder, so a user can find an anchor and copy it
     /// somewhere safer.
