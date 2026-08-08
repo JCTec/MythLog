@@ -39,13 +39,48 @@ struct MainPage: View {
                 queryFocus: $isSearching
             )
         } filters: {
-            FilterBar(
-                counts: model.counts,
-                enabled: model.enabledKinds,
-                lockedSources: LockedSource.allCases,
-                onToggle: model.toggle,
-                onExplainEditions: {}
-            )
+            VStack(alignment: .leading, spacing: Metrics.space2) {
+                FilterBar(
+                    filter: model.filter,
+                    counts: model.counts,
+                    passingCounts: model.passingCounts,
+                    severityCounts: model.severityCounts,
+                    lockedSources: LockedSource.allCases,
+                    openCategory: model.openCategory,
+                    categoryDetail: model.categoryDetail,
+                    presets: FilterPreset.all,
+                    savedFilters: model.savedFilters,
+                    activeSavedFilter: model.activeSavedFilter,
+                    onToggle: model.toggle,
+                    onOpenDetail: model.openDetail(for:),
+                    onCloseDetail: model.closeDetail,
+                    onSetValue: { facet, value, state in model.setState(state, for: value, in: facet) },
+                    onClearFacet: model.clear(_:),
+                    onSetMinimumSeverity: { model.minimumSeverity = $0 },
+                    onApplyPreset: { preset in Task { await model.apply(preset) } },
+                    onApplySaved: model.apply(_:),
+                    onDeleteSaved: model.delete(_:),
+                    onSaveCurrent: model.saveCurrentFilter(named:),
+                    onExplainEditions: {}
+                )
+
+                // Directly above the timeline it qualifies, never in a corner and
+                // never behind a disclosure: a filtered view of somebody's
+                // history has to announce itself where they are already looking.
+                FilterStateBanner(
+                    filter: model.filter,
+                    totalInWindow: model.derived.totalInWindow,
+                    hiddenInWindow: model.hiddenInWindow,
+                    forcedUntrustedCount: model.forcedUntrustedCount,
+                    restored: model.restored,
+                    presetNotice: model.presetNotice,
+                    queryProblems: model.queryProblems,
+                    onRemove: model.remove(_:),
+                    onShowEverything: model.showEverything,
+                    onAcknowledgeRestored: model.acknowledgeRestoredFilter,
+                    onDismissPresetNotice: model.dismissPresetNotice
+                )
+            }
         } timeline: {
             VStack(alignment: .leading, spacing: Metrics.space3) {
                 timelineHeader
@@ -74,6 +109,10 @@ struct MainPage: View {
                     window: model.window,
                     gaps: model.gaps,
                     trustBoundary: model.trustBoundary,
+                    // The list carries the hidden count too. The banner above is
+                    // the loud statement; this is the one still on screen when
+                    // somebody has scrolled the list and is reading rows.
+                    hiddenByFilter: model.hiddenInWindow,
                     selected: model.selected,
                     newEventTime: "14:37",
                     onSelect: { model.selected = $0 },
@@ -146,6 +185,7 @@ struct MainPage: View {
             trustBoundary: model.trustBoundary,
             level: model.level,
             selected: model.selected,
+            hiddenByFilter: model.hiddenInWindow,
             onSelect: { model.selected = $0 },
             onZoomTo: model.zoom(to:)
         )
@@ -188,6 +228,29 @@ struct MainPage: View {
                 .padding(.horizontal, Metrics.space2)
                 .frame(height: 22)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Palette.surfaceRaised))
+
+            // The third place the filtered state is stated, and the one attached
+            // to the drawing itself. A screenshot of this timeline has to carry
+            // the qualification with it — a cropped image of a quiet hour is
+            // exactly how a filtered view becomes a claim about a night.
+            if model.hiddenInWindow > 0 {
+                HStack(spacing: Metrics.space1) {
+                    Image(systemName: "line.3.horizontal.decrease")
+                        .font(.system(size: 9, weight: .bold))
+                    Text("\(model.hiddenInWindow.formatted()) hidden")
+                        .font(Typography.chip)
+                        .monospacedDigit()
+                }
+                .foregroundStyle(Palette.filtered)
+                .padding(.horizontal, Metrics.space2)
+                .frame(height: 22)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Palette.filteredWash))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(Palette.filteredEdge, lineWidth: Metrics.hairline))
+                .accessibilityLabel(
+                    "\(model.hiddenInWindow) records in this window are hidden by a filter")
+            }
 
             HStack(spacing: Metrics.space1) {
                 HatchFill(spacing: 3, lineWidth: 1)

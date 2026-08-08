@@ -30,7 +30,8 @@ enum LedgerEventMapping {
             label: label(for: qualified, event: event),
             detail: detail(for: event),
             source: event.source,
-            payloadKind: qualified
+            payloadKind: qualified,
+            severity: event.severity
         )
     }
 

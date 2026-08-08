@@ -15,6 +15,19 @@ struct TimelineEvent: Identifiable, Hashable, Sendable {
     var source: String
     var payloadKind: String
 
+    /// How loudly the record asked to be noticed, carried through from
+    /// ``AlarmEvent/severity``.
+    ///
+    /// It was dropped during mapping until filtering needed it, which meant
+    /// "warning and above" — the single most useful investigative query — could
+    /// not be expressed at all over data that already carried the answer.
+    ///
+    /// Defaulted so it can be added to a value type with a memberwise
+    /// initialiser used in a dozen places without touching any of them. `.info`
+    /// rather than `.debug`: a record whose severity is unknown should sit where
+    /// an ordinary record sits, not below the floor of a filter somebody set.
+    var severity: AlarmSeverity = .info
+
     var previousRecord: Int { record - 1 }
 }
 

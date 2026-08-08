@@ -14,6 +14,9 @@ struct TimelineCanvas: View {
     var trustBoundary: TrustBoundary?
     var level: ZoomLevel
     var selected: TimelineEvent?
+    /// Records in this window a filter is hiding, so an empty canvas can say
+    /// which kind of empty it is.
+    var hiddenByFilter: Int = 0
     var onSelect: (TimelineEvent) -> Void
     var onZoomTo: (Date) -> Void
 
@@ -35,6 +38,8 @@ struct TimelineCanvas: View {
                     case .clusters: clusters(size: geo.size, grid: grid, buckets: buckets)
                     case .events: nodes(size: geo.size)
                     }
+
+                    if events.isEmpty { emptyNotice(size: geo.size) }
 
                     axisLine(width: geo.size.width, height: geo.size.height)
                 }
@@ -151,6 +156,32 @@ struct TimelineCanvas: View {
                 .accessibilityHidden(true)
             }
         }
+    }
+
+    /// An empty timeline, saying which kind of empty.
+    ///
+    /// Drawn over the gap hatching rather than instead of it, because a window
+    /// containing nothing but a coverage gap must still show the gap: the
+    /// hatching is the answer, and this only explains the space around it.
+    ///
+    /// "Nothing happened" and "you are hiding everything that happened" produce
+    /// identical pixels otherwise, and only one of them is true.
+    private func emptyNotice(size: CGSize) -> some View {
+        VStack(spacing: Metrics.space1) {
+            Text(hiddenByFilter > 0 ? "Everything here is filtered out" : "Nothing recorded in this window")
+                .font(Typography.chip)
+                .foregroundStyle(hiddenByFilter > 0 ? Palette.filtered : Palette.textTertiary)
+            if hiddenByFilter > 0 {
+                Text("\(hiddenByFilter.formatted()) record(s) are hidden")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+            }
+        }
+        .padding(.horizontal, Metrics.space3)
+        .padding(.vertical, Metrics.space2)
+        .background(Capsule().fill(Palette.surface.opacity(0.9)))
+        .overlay(Capsule().strokeBorder(Palette.border, lineWidth: Metrics.hairline))
+        .frame(width: size.width, height: size.height - Metrics.timelineAxisInset)
     }
 
     private func axisLine(width: CGFloat, height: CGFloat) -> some View {

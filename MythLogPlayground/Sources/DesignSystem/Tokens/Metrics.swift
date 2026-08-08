@@ -50,4 +50,19 @@ enum Metrics {
     static let rowRecordWidth: CGFloat = 54
 
     static let inspectorWidth: CGFloat = 340
+
+    // Filtering.
+
+    /// The popover behind a chip's disclosure. Wide enough for a full path
+    /// prefix — `~/Projects/mythlog/.build/` is what the whole subject facet
+    /// exists for, and eliding it would defeat the purpose.
+    static let facetPanelWidth: CGFloat = 380
+    /// Tall enough for a dozen values; beyond that the list scrolls and says how
+    /// many it did not show.
+    static let facetPanelMaxHeight: CGFloat = 460
+    static let facetRowHeight: CGFloat = 26
+
+    /// The rule down the left edge of the filtered-state band. Colour is never
+    /// the only carrier, and this is the part that survives greyscale.
+    static let stateBandRule: CGFloat = 3
 }

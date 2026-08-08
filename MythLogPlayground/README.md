@@ -81,11 +81,13 @@ Sources/
   Mock/          MockLedger — a believable day, behind TimelineSource
   DesignSystem/
     Tokens/      Palette, Typography, Metrics — every literal lives here
-    Atoms/       StatusDot, PillSurface, HatchFill
-    Molecules/   FilterChip, StatusPills, ZoomControls, EventRow
-    Organisms/   HeaderBar, FilterBar, TimelineCanvas, EventList,
-                 InspectorPanel, CoverageGapBanner, IntegrityBanner,
-                 LedgerChooser, PrincipleColumns, AnchorChoiceCard
+    Atoms/       StatusDot, PillSurface, HatchFill, FlowRow
+    Molecules/   FilterChip, FacetValueRow, FilterConstraintPill,
+                 SeverityFilterMenu, StatusPills, ZoomControls, EventRow
+    Organisms/   HeaderBar, FilterBar, FilterFacetPanel, FilterStateBanner,
+                 TimelineCanvas, EventList, InspectorPanel,
+                 CoverageGapBanner, IntegrityBanner, LedgerChooser,
+                 PrincipleColumns, AnchorChoiceCard
     Templates/   MainWindowTemplate — layout only, no meaning
     Pages/       RootPage — choose a ledger, then read it
                  MainPage — template + data + intent
@@ -148,14 +150,24 @@ exactly as it does over a real ledger:
 One component, three renderers — `TimelineCanvas` plus
 `TimelineCanvas+Renderers`. Deliberately not three views:
 
-| Window | Level | Drawn as |
-| --- | --- | --- |
-| > 12 h | Density | Neutral bars |
-| > 90 min | Clusters | Category-stacked bars with counts |
-| ≤ 90 min and ≤ 48 events | Events | Individual nodes with glyphs |
+| Population | Window | Level | Drawn as |
+| --- | --- | --- | --- |
+| ≤ 48 visible | any | Events | Individual nodes with glyphs |
+| > 48 visible | > 12 h | Density | Neutral bars |
+| > 48 visible | ≤ 12 h | Clusters | Category-stacked bars with counts |
 
-The level is chosen from span **and** population, so zooming into a burst stays
-clustered rather than exploding into overlap.
+**Population decides first.** The span thresholds only ever existed as a proxy
+for population — the thing they prevent is thousands of nodes overlapping into a
+smear — and once the population is known directly the proxy is not needed.
+Twelve events spread over a fortnight have nothing to overlap with.
+
+That matters most under a filter. "Show me only screen unlocks" over a week
+leaves five events, and the whole reason for asking is to see them individually.
+With span deciding first, that window resolved to Density and the answer arrived
+as five indistinguishable bars.
+
+Above the limit the span still decides, and the old reasoning stands: zooming
+into a burst stays clustered rather than exploding into overlap.
 
 ### Gaps are drawn on the same grid as the bars
 
@@ -248,6 +260,171 @@ one you are still thinking about. The inspector says when the selected record is
 outside the visible window and offers the way back, rather than describing a
 record with nothing on screen to match it.
 
+## Filtering
+
+Six on/off chips could not investigate 364 file events, and would have been less
+able to after Wave 5 adds drives, displays, and user switching. The model is
+deeper now, and one rule governs the whole of it.
+
+### It must be impossible to forget you are looking at a subset
+
+In most applications a forgotten filter is an annoyance. Here it is **the same
+failure as an undrawn coverage gap** — it makes absence look like safety.
+Somebody opens this app because they are worried, sees a quiet night, and is
+reassured; if that quiet was a filter they set last Tuesday, the app has lied to
+them about the one thing it exists to be honest about.
+
+So the filtered state is stated in four places at once, and none of them is
+subtle or dismissible:
+
+- **A band above the timeline**, permanent while a filter is active. It leads
+  with the *hidden* count — "312 of 364 records in this window are hidden" —
+  because "52 records" reads as an answer and "312 hidden" reads as a warning.
+  Every active constraint is a removable pill beside it, and "Show everything" is
+  always one click.
+- **A pill in the timeline header**, so a screenshot of the drawing carries the
+  qualification with it.
+- **A line in the event list's header**, still on screen when the band is not.
+- **Two numbers on every chip** — see below.
+
+An empty result is never allowed to look like an empty stretch of history. Both
+the timeline and the list say which of the two they are showing.
+
+### Two rules no filter may break
+
+Both are enforced in `TimelineDerivation`, which is the only layer that knows
+about either, and both are asserted in `FilterInvariantTests` over generated
+ledgers under 120 randomly-built filters rather than one hand-picked case.
+
+- **No filter may hide a coverage gap.** An absence of recording is not an event.
+- **No filter may hide a record that failed verification.** Filtering answers
+  *what happened*; it must never answer *whether the record can be believed*. A
+  record past the trust boundary is shown whatever the filter says, and the band
+  says how many are there for that reason.
+
+### The dimensions
+
+`EventFacet` is one type rather than four sets of fields, so the interface is
+generic over it: a facet added for Wave 5 needs no new view.
+
+| Facet | Value | Matching |
+| --- | --- | --- |
+| Category | the six chips | exact |
+| Event type | `session.unlock`, `file.modify` | exact |
+| Source | `loginwindow`, `fseventsd` | exact |
+| Subject | the folder, app, or volume | **prefix** |
+
+Each has an **include** set and an **exclude** set. An empty include set means
+"no opinion", never "nothing" — that is what stops a filter saved today from
+hiding an event type that lands next month. Exclusion beats inclusion, because
+subtraction is the more specific statement.
+
+Subject matching is by prefix on purpose: excluding `~/Projects/…/.build/` has to
+take everything underneath it, or a 312-event build storm has to be excluded one
+object file at a time. Subtractive filters are the ones investigators actually
+reach for.
+
+**Severity is deliberately not a facet.** `AlarmSeverity` is `Comparable` and the
+question people have is ordered — *at least* a warning. Five tick boxes would
+express "notice but not warning", which nobody wants, and would need re-ticking
+when a sixth severity is added. It is a threshold.
+
+**Every offered value is derived from the window**, never from a list. Wave 5
+brings event types this build has never heard of, and a written-down list would
+be wrong the day they land — offering filters for what the ledger no longer
+contains and none for what it does. A capped list always says how many values it
+did not show.
+
+### Presets
+
+"Every time this Mac was unlocked" is not an obscure query; for someone who came
+here worried it is *the* question. It is one click, and it is **not a mode**: it
+writes an ordinary filter, and the band shows exactly what it expanded to. So the
+preset answers the question and, on the way, teaches the model that answered it.
+
+A preset cannot hardcode `session.unlock`, because that is not what every ledger
+calls it — this build's fixture writes `session.unlock` and the shipping recorder
+writes `session.screen.unlocked`, and Wave 5 will write a third. So a preset
+carries *tokens* matched against the components of the types the window actually
+holds, by prefix: `unlocked` begins with `unlock`, and `unmounted` does not begin
+with `mount`, so "drive mounted" never quietly drags in "drive unmounted".
+
+A preset that matches nothing **refuses and says so**. Silently applying an
+unresolved type preset would produce a filter with no type constraint at all —
+showing *more* than before, the exact opposite of what was asked.
+
+### The search box is still a search box
+
+Typing `lease` searches for "lease", as it always did. Tokens are additive:
+
+```text
+kind:session   type:unlock   source:fseventsd   path:.build
+severity:>=warning           -path:.build      "screen unlocked"
+```
+
+Tokens match loosely; a value ticked in a popover matches exactly. They are
+different tools and the difference is deliberate — one is a search, the other is
+a selection.
+
+**No filter is expressible only as a token.** Every field above also has a
+control beside the chips. This app's audience is people worried about their own
+Mac, not people who write queries, and a filter reachable only through a syntax
+is one most of them cannot undo.
+
+A word that looks like a field and is not — `sevrity:>=warning` — is searched as
+plain text **and reported**. Swallowed, it would empty the timeline and give the
+user every reason to read that as "there were no warnings".
+
+### The counts problem
+
+With sub-filters active, "Files 364" is ambiguous: all the file events, or the
+ones passing the sub-filter? So:
+
+- **Chips only** → one number: everything of that category in the window.
+- **Any sub-filter** → `passing / total`. The denominator never moves, which is
+  what makes two numbers legible while the numerator changes under your hands.
+
+A chip whose passing count is below its window count is marked, and that is
+computed from the counts rather than from the filter's shape — attributing a
+source or a subject back to a category would be guessing.
+
+### Saved filters, and the one that is dangerous
+
+Filters can be named and kept, and the active one is restored on launch. That is
+the dangerous feature in this whole document: a filter from last week that nobody
+remembers setting is precisely the lie described at the top.
+
+Starting unfiltered every launch is worse in its own way — somebody who set up
+"Ignore builds" gets the noise back every morning and stops opening the app. So
+the filter is restored **and announced**, in the alarm colour, naming it and the
+day it was saved, and it stays until acknowledged or cleared. The announcement is
+not a nicety; it is what makes restoring defensible at all.
+
+Contrast `OpenedLedgerMemory`, which deliberately does *not* reopen. The asymmetry
+is intentional: reopening a ledger puts somebody's history on a screen in front of
+whoever is in the room, while restoring a filter only risks concealing — which an
+announcement can address and a closed window cannot.
+
+### Performance
+
+Filtering runs on every window change, and window changes arrive several times a
+second while zooming or panning. Measured on 100,000 records, with every
+dimension active:
+
+- **The window is found by binary search.** The scan it replaced compared every
+  event in the ledger on every window change — a quarter of a million comparisons
+  to find the sixty inside a one-hour window. The array is time-ordered, which is
+  what makes that sound; sortedness is checked once per load, and an unsorted
+  array falls back to a full scan rather than returning a quietly short slice.
+- **One pass, and only one.** Category counts, severity counts, passing counts,
+  and the visible slice all come out of the same loop.
+- **The expensive facet is on demand.** Counting distinct subjects means building
+  a folder string from every event in the window; that runs when somebody opens a
+  popover, not on every pan.
+- **The query is parsed once per derivation**, not once per event, and substring
+  matching never builds a lowercased copy of the haystack.
+- Cancel-before-restart is unchanged. It is what makes a fast sweep survivable.
+
 ## Known gaps
 
 Honest about what is not here.
@@ -277,6 +454,12 @@ The full analysis, including what would have to change, is in
 can ship sandboxed at all.
 
 **Ledgers are still read-only.** Nothing here appends to a ledger outside tests.
+
+**Filtering has no time dimension.** "Overnight" is the filter people would most
+obviously want to name, and it is the one that cannot be expressed: the window is
+the time control, and a saved filter carries neither a span nor a time of day.
+Saving one called "Overnight" today would store everything *except* the hours it
+is named for — which is why nothing in this build offers it as an example.
 
 **Multiple simultaneous anchors** (phase 3) are not built, so there is no answer
 yet for two destinations disagreeing — which is the interesting case, since stale

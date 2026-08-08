@@ -8,6 +8,11 @@ struct EventList: View {
     var gaps: [CoverageGap]
     /// Where trustworthy history ends, when part of it does not verify.
     var trustBoundary: TrustBoundary?
+    /// Records in this window a filter is hiding. Stated here as well as in the
+    /// banner above the timeline: a reader scrolled halfway down this list has
+    /// the banner off screen, and "the newest 60 of 52" must never be the only
+    /// number they can see.
+    var hiddenByFilter: Int = 0
     var selected: TimelineEvent?
     var newEventTime: String?
     var onSelect: (TimelineEvent) -> Void
@@ -29,9 +34,14 @@ struct EventList: View {
             Divider().overlay(Palette.divider)
             ScrollView {
                 LazyVStack(spacing: 0) {
+                    // Gaps first, and gaps *always* — including when the filter
+                    // has emptied the list. A window whose only content is a
+                    // coverage gap is the most important thing this list can
+                    // show, and the filter that emptied it must not take it.
                     ForEach(visibleGaps) { gap in
                         CoverageGapBanner(gap: gap).padding(Metrics.space4)
                     }
+                    if shown.isEmpty { emptyState }
                     ForEach(shown) { event in
                         // The list runs newest first, so the marker goes
                         // immediately *before* the first row that is still
@@ -61,6 +71,12 @@ struct EventList: View {
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textTertiary)
 
+            if hiddenByFilter > 0 {
+                Text("· \(hiddenByFilter.formatted()) hidden by filters")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.filtered)
+            }
+
             Spacer()
 
             if let newEventTime {
@@ -78,6 +94,37 @@ struct EventList: View {
         }
         .padding(.horizontal, Metrics.space4)
         .frame(height: 44)
+    }
+
+    /// Nothing to show, and which of the two reasons it is.
+    ///
+    /// "No records here" and "records here, all of them filtered out" look
+    /// identical and mean opposite things. The first is a fact about the
+    /// history; the second is a fact about the filter, and an empty list that
+    /// does not say which invites the reading this app exists to prevent.
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: Metrics.space2) {
+            if hiddenByFilter > 0 {
+                Text("Nothing in this window matches your filter.")
+                    .font(Typography.rowLabel)
+                    .foregroundStyle(Palette.textPrimary)
+                Text(
+                    "\(hiddenByFilter.formatted()) record(s) were recorded here and are being hidden. "
+                        + "This is not an empty stretch of history."
+                )
+                .font(Typography.caption)
+                .foregroundStyle(Palette.filtered)
+            } else {
+                Text("No records in this window.")
+                    .font(Typography.rowLabel)
+                    .foregroundStyle(Palette.textPrimary)
+                Text("Nothing was recorded between these two times.")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.textTertiary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Metrics.space4)
     }
 
     /// The newest row that still verifies — the one the boundary sits above.

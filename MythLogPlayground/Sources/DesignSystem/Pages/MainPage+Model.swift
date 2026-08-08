@@ -23,6 +23,13 @@ extension MainPage {
     /// the previous computation before starting the next one. Without that,
     /// holding ⌘− queues a dozen full passes over the history and every one of
     /// them runs to completion for a window nobody is looking at any more.
+    ///
+    /// # What changed when the filter grew past six chips
+    ///
+    /// One value, ``filter``, holds every constraint. Chips, popovers, presets,
+    /// saved filters, and the search box all write to it and nothing else, so
+    /// there is exactly one answer to "what am I hiding" and the filter bar can
+    /// state it without reconstructing it from four places.
     @MainActor
     @Observable
     final class Model {
@@ -32,10 +39,26 @@ extension MainPage {
         private(set) var loadStage: String?
 
         var window: TimelineWindow
-        var enabledKinds: Set<EventKind> = Set(EventKind.allCases)
         var selected: TimelineEvent?
-        var query: String = "" {
-            didSet { if query != oldValue { refresh() } }
+
+        /// Everything being hidden, as one value.
+        ///
+        /// `didSet` rather than an intent method per control: presets, saved
+        /// filters, the popovers, and the search box all mutate this, and every
+        /// one of them has to re-derive, re-offer the popover's values, and
+        /// remember the new state. Routing that through one observer is the only
+        /// version where a new control cannot forget a step.
+        var filter = EventFilter() {
+            didSet { if filter != oldValue { filterChanged() } }
+        }
+
+        /// The search box's text. A window onto ``filter`` rather than a second
+        /// place the query lives — a `TextField` needs a `Binding`, and two
+        /// stored copies of the same string is how a search box ends up
+        /// disagreeing with the filter it drives.
+        var query: String {
+            get { filter.query.text }
+            set { filter.query.text = newValue }
         }
 
         var integrity: IntegrityState { snapshot.integrity }
@@ -48,6 +71,7 @@ extension MainPage {
         private let source: any TimelineSource
         private let request: TimelineLoadRequest
         private let derivation = TimelineDerivation()
+        private let filterStore: SavedFilterStore
 
         /// The in-flight derivation. Cancelled and replaced on every change; see
         /// the note above about what happens without that.
@@ -57,10 +81,19 @@ extension MainPage {
         /// what structured concurrency does not offer. The load is the opposite
         /// case and is structured — see ``load()``.
         private var derivationTask: Task<Void, Never>?
+        /// The in-flight facet-value derivation, cancelled the same way. Kept
+        /// separate from `derivationTask` because the expensive one must not be
+        /// able to cancel the one that draws the timeline.
+        private var facetTask: Task<Void, Never>?
 
-        init(source: any TimelineSource, request: TimelineLoadRequest = TimelineLoadRequest()) {
+        init(
+            source: any TimelineSource,
+            request: TimelineLoadRequest = TimelineLoadRequest(),
+            filterStore: SavedFilterStore = SavedFilterStore()
+        ) {
             self.source = source
             self.request = request
+            self.filterStore = filterStore
             // Starts empty rather than pretending: the header shows "Verifying…"
             // until a real load says otherwise. `.unverified` is deliberately
             // not `.verified(recordCount: 0)` — a ledger nobody has checked is
@@ -70,6 +103,14 @@ extension MainPage {
             snapshot = initial
             derived = .empty
             window = TimelineWindow(showingAllOf: initial.history)
+            savedFilters = filterStore.saved()
+
+            // Restored, and therefore announced. See ``SavedFilterStore`` for
+            // why restoring at all is defensible only alongside the notice.
+            if let active = filterStore.active(), active.filter.isFiltering {
+                filter = active.filter
+                restored = RestoredFilterNotice(savedAs: active.savedAs, filter: active.filter)
+            }
         }
 
         // MARK: - Loading
@@ -128,7 +169,10 @@ extension MainPage {
                 snapshot.events.first { $0.record == ordinal }
             } ?? snapshot.events.last
 
-            await derivation.replace(events: snapshot.events, gaps: snapshot.gaps)
+            // The boundary goes with the data: it is what lets the derivation
+            // refuse to let a filter hide a record that failed verification.
+            await derivation.replace(
+                events: snapshot.events, gaps: snapshot.gaps, trustBoundary: trustBoundary)
             refresh()
         }
 
@@ -166,14 +210,12 @@ extension MainPage {
             derivationTask?.cancel()
 
             let window = self.window
-            let kinds = enabledKinds
-            let query = self.query
+            let filter = self.filter
             let derivation = self.derivation
 
             derivationTask = Task { [weak self] in
                 do {
-                    let result = try await derivation.result(
-                        window: window, enabledKinds: kinds, query: query)
+                    let result = try await derivation.result(window: window, filter: filter)
                     guard !Task.isCancelled else { return }
                     self?.derived = result
                 } catch {
@@ -181,6 +223,14 @@ extension MainPage {
                     // a superseded window has no result worth showing.
                 }
             }
+
+            refreshFacetValues()
+        }
+
+        private func filterChanged() {
+            refresh()
+            filterStore.rememberActive(
+                SavedFilterStore.Active(filter: filter, savedAs: activeSavedFilter))
         }
 
         // MARK: - Intent
@@ -192,8 +242,16 @@ extension MainPage {
         }
 
         func toggle(_ kind: EventKind) {
-            if enabledKinds.contains(kind) { enabledKinds.remove(kind) } else { enabledKinds.insert(kind) }
-            refresh()
+            filter.toggle(kind)
+        }
+
+        /// Everything back. The one action every filtered state must offer, from
+        /// wherever the user is looking.
+        func showEverything() {
+            activeSavedFilter = nil
+            restored = nil
+            presetNotice = nil
+            filter = EventFilter()
         }
 
         func zoomIn() { setWindow(window.zoomed(by: 0.5)) }
@@ -331,8 +389,184 @@ extension MainPage {
 
         var visibleEvents: [TimelineEvent] { derived.visibleEvents }
         var counts: [EventKind: Int] { derived.counts }
+        var passingCounts: [EventKind: Int] { derived.passingCounts }
         var gaps: [CoverageGap] { derived.gaps }
         var level: ZoomLevel { derived.level }
+
+        /// The categories currently shown, which is the shape the rest of the
+        /// app spoke in before facets existed.
+        var enabledKinds: Set<EventKind> { filter.enabledKinds }
+
+        /// How many records in this window the filter is hiding.
+        var hiddenInWindow: Int { derived.hiddenInWindow }
+
+        /// Records on screen only because they cannot be trusted. Non-zero means
+        /// the interface owes the user a sentence, not a silent inconsistency
+        /// between the filter and what is drawn.
+        var forcedUntrustedCount: Int { derived.forcedUntrustedCount }
+
+        /// The whole filtered state as one line, for VoiceOver.
+        var filterSummary: String {
+            guard filter.isFiltering else { return "No filter is active. Showing everything in this window." }
+            return "\(filter.summarySentence) \(hiddenInWindow.formatted()) of "
+                + "\(derived.totalInWindow.formatted()) records in this window are hidden."
+        }
+
+        // MARK: - Facet values, on demand
+
+        /// Which category's detail is open, if any.
+        private(set) var openCategory: EventKind?
+        /// The values that category's events take, derived from the window.
+        private(set) var categoryDetail: [FacetValues] = []
+
+        /// Severities present in the window, so the control offers what exists.
+        /// Comes off the derivation's own pass — see the note on
+        /// ``TimelineDerivation/Result/severityCounts``.
+        var severityCounts: [AlarmSeverity: Int] { derived.severityCounts }
+
+        func openDetail(for kind: EventKind) {
+            openCategory = openCategory == kind ? nil : kind
+            categoryDetail = []
+            refreshFacetValues()
+        }
+
+        func closeDetail() {
+            openCategory = nil
+            categoryDetail = []
+            facetTask?.cancel()
+        }
+
+        /// Re-derives what the open popover offers.
+        ///
+        /// Called from ``refresh()`` as well as on open, because the window can
+        /// move under an open popover and a list of values from a window nobody
+        /// is looking at is worse than no list.
+        ///
+        /// **Only while a popover is open.** This is the expensive derivation —
+        /// it builds a subject string from every event in the window — and
+        /// running it on every pan for a panel nobody has opened would be a
+        /// second full pass over the history for nothing.
+        private func refreshFacetValues() {
+            facetTask?.cancel()
+            guard let kind = openCategory else { return }
+
+            let window = self.window
+            let derivation = self.derivation
+
+            facetTask = Task { [weak self] in
+                do {
+                    let values = try await derivation.values(
+                        of: EventFacet.detail, in: kind, window: window)
+                    guard !Task.isCancelled else { return }
+                    self?.categoryDetail = values
+                } catch {
+                    // Cancelled by a newer window. The stale list stays until the
+                    // new one arrives, which is better than blanking the popover
+                    // under the pointer on every pan.
+                }
+            }
+        }
+
+        // MARK: - Facet intent
+
+        func setState(_ state: FacetSelection.ValueState, for value: String, in facet: EventFacet) {
+            var selection = filter[facet]
+            switch state {
+            case .included: selection.include(value)
+            case .excluded: selection.exclude(value)
+            case .allowed, .notIncluded: selection.clear(value)
+            }
+            filter[facet] = selection
+        }
+
+        func clear(_ facet: EventFacet) {
+            filter[facet] = FacetSelection()
+        }
+
+        func remove(_ removal: FilterConstraint.Removal) {
+            filter.remove(removal)
+        }
+
+        var minimumSeverity: AlarmSeverity? {
+            get { filter.minimumSeverity }
+            set { filter.minimumSeverity = newValue }
+        }
+
+        // MARK: - Presets
+
+        /// What the last applied preset expanded to, until something else
+        /// changes. Shown so a preset teaches the filter model rather than
+        /// hiding it — and so a preset that matched nothing says so instead of
+        /// looking like a filter that did nothing.
+        private(set) var presetNotice: FilterPreset.Resolution?
+
+        func apply(_ preset: FilterPreset) async {
+            let types: FacetValues
+            do {
+                // A high cap: preset resolution is not a list somebody reads, so
+                // truncating it would silently narrow the expansion. The number
+                // of distinct event types in any window is small.
+                types = try await derivation.values(of: .type, window: window, limit: 1_000)
+            } catch {
+                return
+            }
+
+            let resolution = preset.resolved(against: types)
+            presetNotice = resolution
+            guard !resolution.foundNothing else { return }
+
+            activeSavedFilter = nil
+            restored = nil
+            filter = resolution.filter
+        }
+
+        func dismissPresetNotice() { presetNotice = nil }
+
+        /// Field names in the search box that are not filters.
+        ///
+        /// Reported rather than swallowed. `sevrity:>=warning` matches nothing,
+        /// and an empty timeline with no explanation is exactly the reading this
+        /// app must never invite — see ``FilterQuery``.
+        var queryProblems: [String] { filter.query.parsed.unrecognisedFields }
+
+        // MARK: - Saved filters
+
+        private(set) var savedFilters: [SavedFilter] = []
+        /// The saved filter the current state came from, when it came from one
+        /// and has not been edited since.
+        private(set) var activeSavedFilter: SavedFilter?
+
+        func saveCurrentFilter(named name: String) {
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, filter.isFiltering else { return }
+            let saved = SavedFilter(name: trimmed, filter: filter)
+            filterStore.save(saved)
+            savedFilters = filterStore.saved()
+            activeSavedFilter = saved
+            filterStore.rememberActive(SavedFilterStore.Active(filter: filter, savedAs: saved))
+        }
+
+        func apply(_ saved: SavedFilter) {
+            restored = nil
+            presetNotice = nil
+            // Before `filter` — its `didSet` is what persists the active state,
+            // and it has to record this one as named rather than as anonymous.
+            activeSavedFilter = saved
+            filter = saved.filter
+        }
+
+        func delete(_ saved: SavedFilter) {
+            filterStore.delete(saved.id)
+            savedFilters = filterStore.saved()
+            if activeSavedFilter?.id == saved.id { activeSavedFilter = nil }
+        }
+
+        // MARK: - The restored-filter notice
+
+        private(set) var restored: RestoredFilterNotice?
+
+        /// "Yes, I know" — the notice goes, the filter stays.
+        func acknowledgeRestoredFilter() { restored = nil }
     }
 }
 
@@ -340,5 +574,13 @@ extension TimelineDerivation.Result {
     /// Before the first derivation completes. Empty, and honestly so — the
     /// header says "Verifying…" rather than "0 events".
     static let empty = TimelineDerivation.Result(
-        visibleEvents: [], counts: [:], totalInWindow: 0, gaps: [], level: .density)
+        visibleEvents: [],
+        counts: [:],
+        severityCounts: [:],
+        passingCounts: [:],
+        totalInWindow: 0,
+        hiddenInWindow: 0,
+        forcedUntrustedCount: 0,
+        gaps: [],
+        level: .density)
 }

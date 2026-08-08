@@ -82,16 +82,35 @@ struct HeaderBar: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11))
                 .foregroundStyle(Palette.textTertiary)
-            TextField("Search this window", text: $query)
+            TextField("Search — or severity:>=warning", text: $query)
                 .focused($queryFocus)
                 .textFieldStyle(.plain)
                 .font(Typography.chip)
                 .foregroundStyle(Palette.textPrimary)
         }
-        .frame(width: 210)
+        .frame(width: 250)
         .pillSurface(fill: Palette.surfaceSunken, stroke: Palette.border)
         .accessibilityLabel("Search events in the current window")
+        // The placeholder shows one token and this lists the rest. Discoverable
+        // for anyone who wants it, and load-bearing for nobody: every field here
+        // also has a control beside the chips, because a filter reachable only
+        // through a syntax is one most of this app's audience cannot undo.
+        .help(Self.searchHelp)
     }
+
+    static let searchHelp = """
+        Type anything to search the headline, detail, and source.
+
+        kind:session          the category
+        type:unlock           the event type
+        source:fseventsd      who reported it
+        path:.build           anywhere in the detail line
+        severity:>=warning    warning and above
+        -path:.build          subtract instead of select
+        "screen unlocked"     the phrase, not the two words
+
+        Every one of these also has a control beside the chips.
+        """
 }
 
 /// The "M" drawn as a timeline: a polyline with a chain-head node.

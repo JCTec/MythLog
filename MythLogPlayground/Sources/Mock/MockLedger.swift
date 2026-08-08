@@ -54,14 +54,23 @@ enum MockLedger {
         var out: [TimelineEvent] = []
         var record = 4000
 
-        func add(_ minutes: Double, _ kind: EventKind, _ label: String, _ detail: String, _ source: String, _ payload: String) {
+        // Severity is defaulted so the twenty-odd call sites below stay
+        // readable, and set explicitly where a real recorder would set it. The
+        // distribution is the point: a ledger where everything is `info` cannot
+        // exercise a severity filter, and one where everything is a warning
+        // teaches the wrong lesson about what a warning means.
+        func add(
+            _ minutes: Double, _ kind: EventKind, _ label: String, _ detail: String,
+            _ source: String, _ payload: String, _ severity: AlarmSeverity = .info
+        ) {
             record += 1
             out.append(
                 TimelineEvent(
                     record: record,
                     at: day.addingTimeInterval(minutes * 60),
                     kind: kind, label: label, detail: detail,
-                    source: source, payloadKind: payload
+                    source: source, payloadKind: payload,
+                    severity: severity
                 )
             )
         }
@@ -73,20 +82,20 @@ enum MockLedger {
         let gapEndMinutes = 388.0
         for step in stride(from: 0.0, through: 878.0, by: heartbeatInterval / 60) {
             guard step < gapStartMinutes || step > gapEndMinutes else { continue }
-            add(step, .health, "Recorder heartbeat", "mythlog 0.1.0 · nominal", "agent", "agent.heartbeat")
+            add(step, .health, "Recorder heartbeat", "mythlog 0.1.0 · nominal", "agent", "agent.heartbeat", .debug)
         }
 
         // Before the gap.
-        add(24, .session, "Screen locked", "Idle 10 min", "loginwindow", "session.lock")
-        add(38, .power, "System slept", "Idle sleep", "kernel", "power.sleep")
-        add(124, .health, "Recorder stopped", "Terminated", "mythlogd", "health.stop")
+        add(24, .session, "Screen locked", "Idle 10 min", "loginwindow", "session.lock", .notice)
+        add(38, .power, "System slept", "Idle sleep", "kernel", "power.sleep", .notice)
+        add(124, .health, "Recorder stopped", "Terminated", "mythlogd", "health.stop", .warning)
 
         // — coverage gap 02:04 – 06:28 —
 
-        add(388, .health, "Recorder started", "mythlog 0.1.0", "agent", "agent.started")
-        add(402, .session, "Screen unlocked", "Touch ID", "loginwindow", "session.unlock")
+        add(388, .health, "Recorder started", "mythlog 0.1.0", "agent", "agent.started", .notice)
+        add(402, .session, "Screen unlocked", "Touch ID", "loginwindow", "session.unlock", .notice)
         add(405, .apps, "App launched", "Mail 17.0", "com.apple.mail", "app.launched")
-        add(422, .power, "Wake from sleep", "Lid opened", "kernel", "power.wake")
+        add(422, .power, "Wake from sleep", "Lid opened", "kernel", "power.wake", .notice)
         add(434, .files, "File changed", "~/Documents/lease.pdf", "fseventsd", "file.modify")
         add(436, .apps, "App activated", "Xcode 16.2", "com.apple.dt.Xcode", "app.activated")
 
@@ -106,22 +115,22 @@ enum MockLedger {
             )
         }
 
-        add(620, .drives, "Volume mounted", "\"Time Machine\" · 4 TB", "diskarbitrationd", "drive.mount")
-        add(645, .session, "Screen locked", "Idle 10 min", "loginwindow", "session.lock")
+        add(620, .drives, "Volume mounted", "\"Time Machine\" · 4 TB", "diskarbitrationd", "drive.mount", .notice)
+        add(645, .session, "Screen locked", "Idle 10 min", "loginwindow", "session.lock", .notice)
         add(700, .apps, "App terminated", "Xcode 16.2", "com.apple.dt.Xcode", "app.terminated")
-        add(716, .session, "Screen locked", "Idle 10 min", "loginwindow", "session.lock")
+        add(716, .session, "Screen locked", "Idle 10 min", "loginwindow", "session.lock", .notice)
         add(740, .apps, "App terminated", "Safari 19.0", "com.apple.Safari", "app.terminated")
         add(743, .apps, "App launched", "Safari 19.0", "com.apple.Safari", "app.launched")
         add(792, .files, "File changed", "~/Documents/notes/journal.md", "fseventsd", "file.modify")
-        add(818, .drives, "Volume unmounted", "\"Time Machine\" · 4 TB", "diskarbitrationd", "drive.unmount")
+        add(818, .drives, "Volume unmounted", "\"Time Machine\" · 4 TB", "diskarbitrationd", "drive.unmount", .notice)
 
         // The last half hour — what the Events level shows.
         add(863, .apps, "App launched", "Preview", "com.apple.Preview", "app.launched")
         add(864, .files, "File changed", "~/Projects/mythlog/Sources/Ledger.swift", "fseventsd", "file.modify")
-        add(866, .power, "Display connected", "LG UltraFine 5K", "kernel", "power.display")
+        add(866, .power, "Display connected", "LG UltraFine 5K", "kernel", "power.display", .notice)
         add(867, .files, "File changed", "~/Projects/mythlog/Package.resolved", "fseventsd", "file.modify")
-        add(868, .drives, "Volume mounted", "\"Backup\" · 2 TB", "diskarbitrationd", "drive.mount")
-        add(870, .session, "Screen unlocked", "Touch ID", "loginwindow", "session.unlock")
+        add(868, .drives, "Volume mounted", "\"Backup\" · 2 TB", "diskarbitrationd", "drive.mount", .warning)
+        add(870, .session, "Screen unlocked", "Touch ID", "loginwindow", "session.unlock", .notice)
         add(873, .apps, "App launched", "Terminal 2.14", "com.apple.Terminal", "app.launched")
         add(877, .apps, "App activated", "Mail 17.0", "com.apple.mail", "app.activated")
 

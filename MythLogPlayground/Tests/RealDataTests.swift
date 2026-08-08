@@ -201,12 +201,12 @@ struct TimelineDerivationTests {
 
         let full = try await derivation.result(
             window: TimelineWindow(showingAllOf: all.first!.at...all.last!.at),
-            enabledKinds: Set(EventKind.allCases), query: "")
+            filter: EventFilter.none)
         #expect(full.totalInWindow == 600)
 
         let hour = try await derivation.result(
             window: window(spanMinutes: 60, over: all),
-            enabledKinds: Set(EventKind.allCases), query: "")
+            filter: EventFilter.none)
         #expect(hour.totalInWindow < 600)
         #expect(hour.totalInWindow > 0)
         #expect(hour.counts.values.reduce(0, +) == hour.totalInWindow)
@@ -220,9 +220,9 @@ struct TimelineDerivationTests {
 
         let window = TimelineWindow(showingAllOf: all.first!.at...all.last!.at)
         let unfiltered = try await derivation.result(
-            window: window, enabledKinds: Set(EventKind.allCases), query: "")
+            window: window, filter: EventFilter.none)
         let filtered = try await derivation.result(
-            window: window, enabledKinds: [.session], query: "")
+            window: window, filter: .showing(kinds: [.session]))
 
         #expect(filtered.counts == unfiltered.counts)
         #expect(filtered.visibleEvents.allSatisfy { $0.kind == .session })
@@ -240,7 +240,7 @@ struct TimelineDerivationTests {
         // Zoom in, then back out: the second visit to each window is a hit.
         for window in [a, b, a, b, a] {
             _ = try await derivation.result(
-                window: window, enabledKinds: Set(EventKind.allCases), query: "")
+                window: window, filter: EventFilter.none)
         }
 
         let stats = await derivation.cacheStatistics
@@ -256,12 +256,12 @@ struct TimelineDerivationTests {
         let window = TimelineWindow(showingAllOf: first.first!.at...first.last!.at)
 
         let before = try await derivation.result(
-            window: window, enabledKinds: Set(EventKind.allCases), query: "")
+            window: window, filter: EventFilter.none)
         #expect(before.totalInWindow == 100)
 
         await derivation.replace(events: events(10), gaps: [])
         let after = try await derivation.result(
-            window: window, enabledKinds: Set(EventKind.allCases), query: "")
+            window: window, filter: EventFilter.none)
         #expect(after.totalInWindow == 10, "a stale cached answer about somebody's history")
 
         let stats = await derivation.cacheStatistics
@@ -278,7 +278,7 @@ struct TimelineDerivationTests {
 
         let task = Task {
             try await derivation.result(
-                window: window, enabledKinds: Set(EventKind.allCases), query: "")
+                window: window, filter: EventFilter.none)
         }
         task.cancel()
         await #expect(throws: CancellationError.self) { try await task.value }
@@ -286,7 +286,7 @@ struct TimelineDerivationTests {
         // And the cancellation was not cached: the same window computes cleanly
         // afterwards.
         let result = try await derivation.result(
-            window: window, enabledKinds: Set(EventKind.allCases), query: "")
+            window: window, filter: EventFilter.none)
         #expect(result.totalInWindow == 400_000)
     }
 
@@ -302,7 +302,7 @@ struct TimelineDerivationTests {
 
         let window = TimelineWindow(showingAllOf: all.first!.at...all.last!.at)
         // Every category unticked, and a query nothing matches.
-        let result = try await derivation.result(window: window, enabledKinds: [], query: "zzzzz")
+        let result = try await derivation.result(window: window, filter: .showing(kinds: [], query: "zzzzz"))
 
         #expect(result.visibleEvents.isEmpty)
         #expect(result.gaps == [gap], "an absence of recording is not an event and no filter may hide it")
@@ -317,14 +317,14 @@ struct TimelineDerivationTests {
         let history = dense.first!.at...dense.last!.at
         let whole = try await derivation.result(
             window: TimelineWindow(showingAllOf: history),
-            enabledKinds: Set(EventKind.allCases), query: "")
+            filter: EventFilter.none)
         #expect(whole.level == .clusters)
 
         // Zoomed right in on a dense burst: still clustered, because exploding
         // 600 events into overlapping nodes helps nobody.
         let tight = try await derivation.result(
             window: TimelineWindow(history: history, mostRecent: TimelineWindow.minimumSpan),
-            enabledKinds: Set(EventKind.allCases), query: "")
+            filter: EventFilter.none)
         #expect(tight.level == .clusters)
 
         // …and sparse enough, it becomes individual events.
@@ -333,7 +333,7 @@ struct TimelineDerivationTests {
         let sparseHistory = sparse.first!.at...sparse.last!.at
         let nodes = try await derivation.result(
             window: TimelineWindow(showingAllOf: sparseHistory),
-            enabledKinds: Set(EventKind.allCases), query: "")
+            filter: EventFilter.none)
         #expect(nodes.level == .events)
     }
 }
@@ -368,7 +368,7 @@ struct ZoomPerformanceTests {
         let elapsed = try await clock.measure {
             for _ in 0..<12 {
                 _ = try await derivation.result(
-                    window: window, enabledKinds: Set(EventKind.allCases), query: "")
+                    window: window, filter: EventFilter.none)
                 window = window.zoomed(by: 0.5)
             }
         }
