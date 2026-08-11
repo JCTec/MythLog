@@ -41,6 +41,23 @@ enum FilterPreviewFixtures {
         MockLedger.events.filter { $0.subject == buildFolder }.count
     }
 
+    /// Enough distinct values to overflow ``Metrics/facetPanelMaxHeight``, taken
+    /// from the fixture's build storm rather than written out here — the paths
+    /// stay real, and no literal one appears in a layer with no business
+    /// carrying it. The cap is deliberately below the number available, so the
+    /// "not listed" line is present too.
+    static var buildStormFiles: FacetValues {
+        FacetValues(
+            facet: .subject,
+            kind: .files,
+            counts: MockLedger.events
+                .filter { $0.kind == .files }
+                .reduce(into: [String: Int]()) { counts, event in
+                    counts[event.detail, default: 0] += 1
+                },
+            limit: 60)
+    }
+
     /// The values a real derivation would offer for the Files chip, over the
     /// whole fixture.
     static func facetValues(for kind: EventKind) -> [FacetValues] {
@@ -216,6 +233,49 @@ enum FilterPreviewFixtures {
         }(),
         onSet: { _, _, _ in }, onClear: { _ in }
     )
+    .background(Palette.canvas)
+}
+
+/// How tall the panel is, at both ends of what a category can hold.
+///
+/// `.fixedSize()` is the point of this preview, not decoration: it makes each
+/// panel take the height it would *ask a popover for*, so the two heights here
+/// are the two numbers that decide whether this panel is presented correctly. A
+/// short category hugs its content; a long one stops at
+/// ``Metrics/facetPanelMaxHeight`` and scrolls, still saying how many values it
+/// did not list.
+///
+/// Both were the same collapsed sliver once, and nothing caught it, because the
+/// panel only misbehaves when a popover presents it *before* its values exist —
+/// see `FilterFacetPanel` and `FacetPanelHeightTests`. This preview is the check
+/// on the sizes themselves; the test is the check on the order.
+#Preview("Facet panel — two values against sixty") {
+    HStack(alignment: .top, spacing: Metrics.space4) {
+        FilterFacetPanel(
+            kind: .session,
+            facetValues: [
+                FacetValues(
+                    facet: .type, kind: .session,
+                    values: [
+                        FacetValue(value: "session.unlock", count: 3),
+                        FacetValue(value: "session.lock", count: 2),
+                    ],
+                    omitted: 0)
+            ],
+            filter: EventFilter(),
+            onSet: { _, _, _ in }, onClear: { _ in }
+        )
+        .fixedSize()
+
+        FilterFacetPanel(
+            kind: .files,
+            facetValues: [FilterPreviewFixtures.buildStormFiles],
+            filter: EventFilter(),
+            onSet: { _, _, _ in }, onClear: { _ in }
+        )
+        .fixedSize()
+    }
+    .padding(Metrics.space4)
     .background(Palette.canvas)
 }
 

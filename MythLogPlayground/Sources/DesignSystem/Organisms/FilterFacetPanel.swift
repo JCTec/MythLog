@@ -29,6 +29,16 @@ struct FilterFacetPanel: View {
     var onSet: (EventFacet, String, FacetSelection.ValueState) -> Void
     var onClear: (EventFacet) -> Void
 
+    /// The natural height of the scroll content, measured at layout time.
+    ///
+    /// Starts at zero and is corrected on the first layout pass. That order is
+    /// deliberate: this panel is presented in a popover *before* its values
+    /// exist, so it grows into its content rather than shrinking into it, and
+    /// growing from nothing is one step where starting at the cap would make a
+    /// two-value category flash full height on the way down. See the comment on
+    /// the `ScrollView` below for what the measurement is really for.
+    @State private var contentHeight: CGFloat = 0
+
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.space3) {
             header
@@ -39,12 +49,59 @@ struct FilterFacetPanel: View {
                     .foregroundStyle(Palette.textTertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
+                // The scroll view is given a definite height, measured from its
+                // own content.
+                //
+                // # What actually went wrong
+                //
+                // Not what it looks like. A `ScrollView`'s ideal height does
+                // *not* collapse here — hand this panel a populated
+                // `facetValues` and it sizes correctly with nothing but
+                // `.frame(maxHeight:)`, which is why it looked right in every
+                // preview and every screenshot ever taken of it.
+                //
+                // It never receives one. ``MainPage/Model/openDetail(for:)``
+                // clears `categoryDetail` and fills it from a task, so the
+                // popover is *always* presented on the "Reading this window…"
+                // branch above — one line of text — and the values arrive a
+                // moment later. An `NSPopover` fixes its content size when it
+                // is presented, and a SwiftUI view whose *ideal* height grows
+                // afterwards does not move it. Measured: 100 pt on opening and
+                // 100 pt for ever after, for a category with two values and one
+                // with sixty alike. The header, and the first row sliced.
+                //
+                // # Why measuring fixes it
+                //
+                // A definite height is a value the popover follows. The content
+                // is measured, the scroll view is given exactly that height up
+                // to the cap, and the change lands as an explicit frame after
+                // presentation rather than as a new ideal size — which is the
+                // part `NSPopover` ignores. Same three categories, measured
+                // through a real popover: 177, 357, 546 pt, the last being the
+                // cap plus this panel's chrome.
+                //
+                // So: a category with two values gets a panel two values tall,
+                // and a category with sixty scrolls at the cap and still says
+                // how many values it did not show.
+                //
+                // `onGeometryChange` is macOS 13+ (verified against the DocC
+                // data for the symbol, 2026-08-10), so no availability guard
+                // is needed at this target. Its `transform` runs off-actor and
+                // must be `@Sendable`; its `action` runs where the view lives,
+                // which is what lets it write `@State` with no ceremony under
+                // strict concurrency.
                 ScrollView {
                     VStack(alignment: .leading, spacing: Metrics.space4) {
                         ForEach(facetValues, id: \.facet) { section($0) }
                     }
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.size.height
+                    } action: { contentHeight = $0 }
                 }
-                .frame(maxHeight: Metrics.facetPanelMaxHeight)
+                .frame(
+                    height: min(
+                        max(contentHeight, Metrics.facetRowHeight),
+                        Metrics.facetPanelMaxHeight))
             }
         }
         .padding(Metrics.space4)
