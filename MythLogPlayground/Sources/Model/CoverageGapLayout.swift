@@ -88,8 +88,11 @@ enum CoverageGapLayout {
         var label: String {
             guard let first = gaps.first, let last = gaps.last else { return "no coverage" }
             if gaps.count == 1 { return first.label }
-            return "no coverage \(first.start.clockText) – \(last.end.clockText), "
-                + "\(gaps.count) interruptions"
+            // Day-aware for the same reason a single gap is: a coalesced region
+            // is by construction the *widest* thing on the timeline, so it is
+            // the mark most likely to span midnight.
+            return "no coverage \(RangeLabel.text(from: first.start, to: last.end)), "
+                + "\(gaps.count.formatted()) interruptions"
         }
 
         var isRegion: Bool { form == .region }

@@ -65,4 +65,14 @@ enum Metrics {
     /// The rule down the left edge of the filtered-state band. Colour is never
     /// the only carrier, and this is the part that survives greyscale.
     static let stateBandRule: CGFloat = 3
+
+    /// A chip with nothing behind it in this window. Dimmed rather than removed
+    /// — the category still exists — but not a peer of chips with content.
+    static let emptyChipOpacity: Double = 0.45
+
+    /// The gap between groups in the filter toolbar, either side of a divider.
+    /// Wider than the gap between chips, which is what makes the grouping
+    /// readable without a label on each group.
+    static let toolbarGroupGap: CGFloat = 10
+    static let toolbarDividerHeight: CGFloat = 18
 }

@@ -20,7 +20,7 @@ struct EventRow: View {
                     .foregroundStyle(Palette.textSecondary)
                     .frame(width: Metrics.rowTimeWidth, alignment: .leading)
 
-                Image(systemName: event.kind.symbol)
+                Image(systemName: event.symbol)
                     .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(event.kind.hue)
                     .frame(width: 16)

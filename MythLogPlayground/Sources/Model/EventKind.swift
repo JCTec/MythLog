@@ -34,9 +34,19 @@ enum EventKind: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The mark for the *category*.
+    ///
+    /// Session is not a padlock. A padlock next to a record title asks a
+    /// question the reader has to resolve — is this an unlock event, or is this
+    /// telling me something is insecure? — and an open padlock rendered in the
+    /// same green the app uses for "verified" answers it wrongly twice over. The
+    /// category is about who was present at the machine, so the mark is a person.
+    ///
+    /// Padlocks are reserved for the two records that genuinely are about
+    /// locking: see ``TimelineEvent/symbol``.
     var symbol: String {
         switch self {
-        case .session: "lock.open"
+        case .session: "person.crop.circle"
         case .power: "moon"
         case .apps: "macwindow"
         case .files: "doc"

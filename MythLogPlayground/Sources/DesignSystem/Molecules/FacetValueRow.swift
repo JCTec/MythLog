@@ -34,7 +34,7 @@ struct FacetValueRow: View {
 
             Spacer(minLength: Metrics.space2)
 
-            Text("\(value.count)")
+            Text(value.count.formatted())
                 .font(Typography.rowRecord)
                 .foregroundStyle(Palette.textQuiet)
 
@@ -52,7 +52,7 @@ struct FacetValueRow: View {
         }
         .frame(height: Metrics.facetRowHeight)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(facet.display(value.value)), \(value.count) events")
+        .accessibilityLabel("\(facet.display(value.value)), \(value.count.formatted()) events")
         .accessibilityValue(stateDescription)
     }
 

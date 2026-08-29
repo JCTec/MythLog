@@ -84,7 +84,7 @@ struct LedgerAnchorComparison: Codable, Equatable, Sendable {
                 verdict: .truncated,
                 issues: [
                     "The anchor written at \(anchor.createdAt.formatted(.iso8601)) covers "
-                        + "\(anchor.recordCount) records; this Mac holds \(recordCount). "
+                        + "\(anchor.recordCount.formatted()) records; this Mac holds \(recordCount.formatted()). "
                         + "\(missing) record(s) have been removed from the end of the ledger."
                 ]
             )

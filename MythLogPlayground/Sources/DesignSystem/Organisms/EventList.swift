@@ -38,8 +38,14 @@ struct EventList: View {
                     // has emptied the list. A window whose only content is a
                     // coverage gap is the most important thing this list can
                     // show, and the filter that emptied it must not take it.
-                    ForEach(visibleGaps) { gap in
-                        CoverageGapBanner(gap: gap).padding(Metrics.space4)
+                    // Only the first carries the explanation; see
+                    // ``CoverageGapBanner``. The rest state the same facts in
+                    // one line and expand on request.
+                    ForEach(Array(visibleGaps.enumerated()), id: \.element.id) { index, gap in
+                        CoverageGapBanner(gap: gap, isFirst: index == 0)
+                            .padding(.horizontal, Metrics.space4)
+                            .padding(.top, index == 0 ? Metrics.space4 : Metrics.space2)
+                            .padding(.bottom, index == visibleGaps.count - 1 ? Metrics.space4 : 0)
                     }
                     if shown.isEmpty { emptyState }
                     ForEach(shown) { event in
@@ -70,6 +76,9 @@ struct EventList: View {
             Text(countLabel)
                 .font(Typography.caption)
                 .foregroundStyle(Palette.textTertiary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .fixedSize()
 
             if hiddenByFilter > 0 {
                 Text("· \(hiddenByFilter.formatted()) hidden by filters")
@@ -138,7 +147,11 @@ struct EventList: View {
 
     /// Honest about truncation: never silently drops rows.
     private var countLabel: String {
-        if isCapped { return "newest \(cap) of \(events.count) shown" }
-        return events.count == 1 ? "1 event" : "\(events.count) events"
+        // Separated, always. "34396" is a number the eye has to count digits on
+        // before it knows whether it is thirty-four thousand or three hundred
+        // thousand, and this app's whole scale problem is that those are
+        // different situations.
+        if isCapped { return "newest \(cap.formatted()) of \(events.count.formatted()) shown" }
+        return events.count == 1 ? "1 event" : "\(events.count.formatted()) events"
     }
 }

@@ -41,23 +41,45 @@ struct CoverageGap: Equatable, Sendable, Identifiable {
     }
 
     var label: String {
-        "no coverage \(start.clockText) – \(end.clockText)"
+        "no coverage \(rangeLabel)"
     }
 
-    /// "4 h 24 min", "18 min".
-    var durationLabel: String {
-        let minutes = Int((duration / 60).rounded())
-        if minutes >= 1440 {
-            let days = minutes / 1440
-            let hours = (minutes % 1440) / 60
-            return hours == 0 ? "\(days) d" : "\(days) d \(hours) h"
+    /// The span, with weekdays when it crosses midnight.
+    ///
+    /// A gap is the one thing in this app most likely to cross a day boundary —
+    /// a machine left off overnight produces exactly that — and it is also the
+    /// thing whose duration matters most. "13:31 – 11:56" for twenty-two hours
+    /// of silence reads as a mistake.
+    var rangeLabel: String { RangeLabel.text(from: start, to: end) }
+
+    /// "4 h 24 min", "18 min". Shared with every other duration in the app; see
+    /// ``DurationLabel``.
+    var durationLabel: String { DurationLabel.text(duration) }
+
+    /// The bounding ordinals, as the interface writes them.
+    var boundsLabel: String {
+        "#\(lastRecordBefore.formatted())→#\(firstRecordAfter.formatted())"
+    }
+
+    /// Five words on why the recorder went quiet, or that it did not say.
+    ///
+    /// The unexplained case leads, because it is the one that matters and
+    /// because a card scanned rather than read must not leave the impression
+    /// that every gap is accounted for.
+    var evidenceLabel: String {
+        switch evidence {
+        case .recordedStop: "stop record written"
+        case .unexplained: "no stop record"
         }
-        if minutes >= 60 {
-            let hours = minutes / 60
-            let rest = minutes % 60
-            return rest == 0 ? "\(hours) h" : "\(hours) h \(rest) min"
-        }
-        return "\(minutes) min"
+    }
+
+    /// The whole card in one line, for the second and subsequent gaps.
+    ///
+    /// A real ledger has many gaps. Repeating the full explanation on each one
+    /// turns the most important card in the list into wallpaper — three
+    /// identical paragraphs are skipped in a way that one is not.
+    var summaryLine: String {
+        "No coverage · \(durationLabel) · \(rangeLabel) · \(evidenceLabel) · \(boundsLabel)"
     }
 }
 

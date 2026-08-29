@@ -88,7 +88,7 @@ struct FilterStateBanner: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Filter active")
         .accessibilityValue(
-            "\(hiddenInWindow) of \(totalInWindow) records in this window are hidden. "
+            "\(hiddenInWindow.formatted()) of \(totalInWindow.formatted()) records in this window are hidden. "
                 + filter.summarySentence)
     }
 

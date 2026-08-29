@@ -49,13 +49,18 @@ struct HistoryPositionBar: View {
                 // A pan affordance is invisible otherwise, exactly as the pinch
                 // affordance is — and for the same reason it is spelled out
                 // beside the zoom controls.
+                // Lifted off `textQuiet`. Keyboard hints are the only discovery
+                // route for people who cannot use the gestures, so they are the
+                // last text in the app that should be set at the dimmest step on
+                // the scale — a hint nobody can read is decoration.
                 Text("← → pan · two-finger scroll · ⌘← ⌘→ ends")
                     .font(Typography.hint)
-                    .foregroundStyle(Palette.textQuiet)
+                    .foregroundStyle(Palette.textTertiary)
                     .accessibilityHidden(true)
                 Text(rangeLabel)
                     .font(Typography.hint)
-                    .foregroundStyle(Palette.textQuiet)
+                    .foregroundStyle(Palette.textTertiary)
+                    .monospacedDigit()
             }
             track
         }
@@ -97,10 +102,25 @@ struct HistoryPositionBar: View {
 
             ZStack(alignment: .leading) {
                 Capsule().fill(Palette.surfaceSunken)
+
+                // # The thumb is never green
+                //
+                // It used to fill with the accent whenever the window was live —
+                // and a window showing the whole history is live *and* full
+                // width, so the commonest state in the app was a saturated green
+                // bar spanning the window. That is a progress bar. It reads as
+                // "83% complete", or as a loading state, and it says nothing
+                // about position because it is always full.
+                //
+                // Position is a neutral fact and gets a neutral colour. Liveness
+                // is not a span at all — it is the single point where new
+                // records arrive — so it is drawn as a point, below.
                 Capsule()
-                    .fill(isLive ? Palette.accent.opacity(0.7) : Palette.textQuiet.opacity(0.7))
+                    .fill(Palette.textQuiet.opacity(0.75))
                     .frame(width: min(w, geo.size.width))
                     .offset(x: min(x, geo.size.width - min(w, geo.size.width)))
+
+                liveEdge(width: geo.size.width)
             }
             .contentShape(Rectangle())
             .gesture(
@@ -126,8 +146,33 @@ struct HistoryPositionBar: View {
         .accessibilityValue(rangeLabel)
     }
 
+    /// The live edge: a tick and a dot at the right-hand end of the track.
+    ///
+    /// It is there whether or not the window is at it — that is the point. The
+    /// mark says "new records arrive here"; the thumb's distance from it says
+    /// how far back you are reading. Lighting the mark up only when you happen to
+    /// be parked on it would remove the reference exactly when it is needed.
+    private func liveEdge(width: CGFloat) -> some View {
+        Circle()
+            .fill(isLive ? Palette.accent : Palette.textQuiet)
+            .frame(width: Metrics.historyBarHeight + 2, height: Metrics.historyBarHeight + 2)
+            .overlay(
+                Rectangle()
+                    .fill(isLive ? Palette.accent : Palette.textQuiet)
+                    .frame(width: Metrics.hairline, height: Metrics.historyBarHeight + 8)
+            )
+            .offset(x: width - (Metrics.historyBarHeight + 2) / 2)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    /// Where the window sits, qualified by the history it sits in — unless it
+    /// *is* the history, in which case qualifying it with itself says nothing.
     private var rangeLabel: String {
-        "\(window.label) of \(window.history.lowerBound.clockText) – \(window.history.upperBound.clockText)"
+        guard !window.showsWholeHistory else { return window.label }
+        let whole = RangeLabel.text(
+            from: window.history.lowerBound, to: window.history.upperBound)
+        return "\(window.label) of \(whole)"
     }
 }
 

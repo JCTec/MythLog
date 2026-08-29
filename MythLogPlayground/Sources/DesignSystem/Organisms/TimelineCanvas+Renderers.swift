@@ -49,7 +49,7 @@ extension TimelineCanvas {
                 }
                 .buttonStyle(.plain)
                 .offset(x: frame.x)
-                .accessibilityLabel("\(bucket.count) events at \(bucket.start.clockText)")
+                .accessibilityLabel("\(bucket.count.formatted()) events at \(bucket.start.clockText)")
             }
         }
         .frame(width: size.width, height: size.height - Metrics.timelineAxisInset, alignment: .bottomLeading)
@@ -70,7 +70,7 @@ extension TimelineCanvas {
                     // `.fixedSize()`: the clock-aligned grid makes the two edge
                     // buckets narrow, and a count that refused to shrink would
                     // sit on top of its neighbour's.
-                    Text(bucket.count > 0 ? "\(bucket.count)" : "")
+                    Text(bucket.count > 0 ? bucket.count.formatted() : "")
                         .font(Typography.clusterCount)
                         .foregroundStyle(Palette.textQuiet)
                     Button { onZoomTo(bucket.start) } label: {
@@ -92,7 +92,7 @@ extension TimelineCanvas {
                 }
                 .frame(width: frame.width)
                 .offset(x: frame.x)
-                .accessibilityLabel("\(bucket.count) events at \(bucket.start.clockText)")
+                .accessibilityLabel("\(bucket.count.formatted()) events at \(bucket.start.clockText)")
             }
         }
         .frame(width: size.width, height: size.height - Metrics.timelineAxisInset, alignment: .bottomLeading)
@@ -118,7 +118,7 @@ extension TimelineCanvas {
                     .offset(y: Metrics.nodeDiameter / 2)
 
                 Button { onSelect(event) } label: {
-                    Image(systemName: event.kind.symbol)
+                    Image(systemName: event.symbol)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(event.kind.hue)
                         .frame(width: Metrics.nodeDiameter, height: Metrics.nodeDiameter)

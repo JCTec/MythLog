@@ -230,7 +230,8 @@ struct TimelinePanningTests {
             source: source,
             request: TimelineLoadRequest(
                 gapThreshold: HeartbeatConfig(intervalSeconds: MockLedger.heartbeatInterval).gapThreshold,
-                verify: false)
+                verify: false),
+            filterStore: SavedFilterStore(suiteName: isolatedFilterSuite())
         )
         await model.load()
         return model
@@ -371,6 +372,29 @@ struct TimelinePanningTests {
 }
 
 /// A ledger of a given size, behind the same protocol a real one comes through.
+/// A defaults suite nobody else will write to.
+///
+/// # Why a model in a test may not use the default store
+///
+/// `SavedFilterStore()` derives its suite from `MYTHLOG_CONTAINER`, which the
+/// scheme pins to one path — so it is the *same* suite on every run of the
+/// suite, on this machine, forever. `MainPage.Model` restores whatever active
+/// filter it finds there, so anything that ever leaves one behind is inherited
+/// by every later run.
+///
+/// It is not hypothetical. A stored query of `"co"` — two characters, from a
+/// process nobody was watching — matched nothing in `GeneratedLedger`, so
+/// `visibleEvents` stayed empty, `settle` timed out three times, and the
+/// hundred-thousand-record panning test failed for sixty seconds while claiming
+/// the derivation never caught up. Nothing was wrong with panning. The only way
+/// to get the suite green again was to delete a plist.
+///
+/// Every other test file here already passes a per-test suite for exactly this
+/// reason. These two were the ones that did not.
+private func isolatedFilterSuite() -> String {
+    "com.jctec.mythlog.playground.tests.\(UUID().uuidString)"
+}
+
 private struct GeneratedLedger: TimelineSource {
     var count: Int
     var describedOrigin: String { "\(count) generated events" }
@@ -412,7 +436,8 @@ struct PanningPerformanceTests {
     func fastSweepStaysResponsive() async throws {
         let model = MainPage.Model(
             source: GeneratedLedger(count: 100_000),
-            request: TimelineLoadRequest(verify: false))
+            request: TimelineLoadRequest(verify: false),
+            filterStore: SavedFilterStore(suiteName: isolatedFilterSuite()))
         await model.load()
         model.apply(preset: 3600)
         try await settle(model)

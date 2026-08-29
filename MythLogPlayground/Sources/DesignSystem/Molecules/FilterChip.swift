@@ -54,6 +54,13 @@ struct FilterChip: View {
                     Text(kind.label)
                         .font(Typography.chip)
                         .foregroundStyle(isOn ? Palette.textPrimary : Palette.textTertiary)
+                        // A chip that shortens its own label carries no
+                        // information: "S… …" names no category and states no
+                        // count. It is sized to its content and the *row* is
+                        // responsible for finding space — see ``FilterBar``,
+                        // which wraps rather than compresses.
+                        .lineLimit(1)
+                        .fixedSize()
                     counts
                 }
                 .padding(.horizontal, Metrics.space3)
@@ -105,27 +112,47 @@ struct FilterChip: View {
                     isPartlyHidden ? Palette.filteredEdge : (isOn ? Palette.borderStrong : Palette.border),
                     lineWidth: Metrics.hairline)
         )
+        .opacity(isEmpty ? Metrics.emptyChipOpacity : 1)
+        .fixedSize()
     }
 
+    /// Nothing of this category in the window.
+    ///
+    /// Not the same as a locked source, which is why the two are styled
+    /// differently: this one means "nothing happened", and ``FilterChip/Locked``
+    /// means "I cannot see". A chip with nothing behind it is dimmed rather than
+    /// rendered as a peer of chips with content — it is still there, still
+    /// togglable, and still says the category exists, but it stops competing for
+    /// attention with the chips that have something to show.
+    private var isEmpty: Bool { count == 0 }
+
+    @ViewBuilder
     private var counts: some View {
-        HStack(spacing: 1) {
-            Text("\(showsBothCounts ? passing : count)")
-                .font(Typography.chipCount)
-                .foregroundStyle(isOn ? Palette.textSecondary : Palette.textQuiet)
-            if showsBothCounts {
-                Text("/\(count)")
+        // Suppressed at zero. "Health 0" spends a digit saying nothing; the
+        // dimmed chip has already said it.
+        if !isEmpty {
+            HStack(spacing: 1) {
+                Text("\(showsBothCounts ? passing.formatted() : count.formatted())")
                     .font(Typography.chipCount)
-                    .foregroundStyle(Palette.textQuiet)
+                    .foregroundStyle(isOn ? Palette.textSecondary : Palette.textQuiet)
+                if showsBothCounts {
+                    Text("/\(count.formatted())")
+                        .font(Typography.chipCount)
+                        .foregroundStyle(Palette.textQuiet)
+                }
             }
+            .monospacedDigit()
+            .lineLimit(1)
+            .fixedSize()
         }
-        .monospacedDigit()
     }
 
     private var accessibilityValue: String {
         guard showsBothCounts else {
-            return "\(count) events in this window, \(isOn ? "shown" : "hidden")"
+            return "\(count.formatted()) events in this window, \(isOn ? "shown" : "hidden")"
         }
-        return "\(passing) of \(count) events in this window shown, \(count - passing) hidden by filters"
+        return "\(passing.formatted()) of \(count.formatted()) events in this window shown, "
+            + "\((count - passing).formatted()) hidden by filters"
     }
 }
 

@@ -15,10 +15,19 @@ extension FilterChip {
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(Palette.textQuiet)
                 Text(source.label)
-                    .font(Typography.chip)
+                    .font(Typography.caption)
                     .foregroundStyle(Palette.textQuiet)
+                    // "Failed u…" is not a source anybody can identify, and this
+                    // chip's whole job is to name what cannot be seen. It sizes
+                    // to its label and the row wraps around it.
+                    .lineLimit(1)
+                    .fixedSize()
             }
-            .pillSurface(fill: .clear, stroke: Palette.border, dashed: true)
+            // Quieter than a real chip on purpose: this is informational, not
+            // interactive, and at equal weight four of them read as four more
+            // controls the user has failed to understand.
+            .pillSurface(fill: .clear, stroke: Palette.divider, dashed: true, horizontal: Metrics.space2)
+            .fixedSize()
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(source.label)
             .accessibilityValue("Not observable by this edition")

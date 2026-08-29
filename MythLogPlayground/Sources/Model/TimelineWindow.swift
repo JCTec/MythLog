@@ -193,17 +193,31 @@ struct TimelineWindow: Equatable, Sendable {
     /// never a tiling of adjacent ones.
     func contains(_ date: Date) -> Bool { date >= start && date <= end }
 
-    var label: String {
-        "\(start.clockText) – \(end.clockText)"
-    }
+    /// The window's extent, with weekdays once it crosses midnight.
+    ///
+    /// # The label used to contradict the span beside it
+    ///
+    /// A six-day window starting at 12:37 ends at 21:59 six days later, and this
+    /// printed `12:37 – 21:59`. Next to a chip reading `Density · 6 d` that is a
+    /// flat contradiction: one says six days, the other appears to say nine
+    /// hours, and a reader has no way to tell which is lying. Neither was — the
+    /// label had silently dropped the six days between the two clock times.
+    ///
+    /// ``RangeLabel`` adds the weekday exactly when the range crosses a day
+    /// boundary, which is precisely when the clock alone stops being sufficient.
+    var label: String { RangeLabel.text(from: start, to: end) }
 
-    /// Human span, used in the timeline level chip: "3 d", "15 h", "1 h",
-    /// "10 min".
-    var spanLabel: String {
-        let minutes = span / 60
-        if minutes >= 2880 { return "\(Int((minutes / 1440).rounded())) d" }
-        if minutes >= 90 { return "\(Int((minutes / 60).rounded())) h" }
-        if minutes >= 55 { return "1 h" }
-        return "\(Int(minutes.rounded())) min"
+    /// Human span, used in the timeline level chip: "3 d", "15 h", "10 min".
+    /// Shared with coverage gaps and everything else that prints a duration —
+    /// see ``DurationLabel``.
+    var spanLabel: String { DurationLabel.text(span) }
+
+    /// Whether this window is the entire history.
+    ///
+    /// For the position readout, which used to render "12:37 – 21:59 of 12:37 –
+    /// 21:59" whenever the two coincided. A range qualified by itself is not a
+    /// qualification, and it reads as though something has gone wrong.
+    var showsWholeHistory: Bool {
+        isAtStart && isAtEnd
     }
 }

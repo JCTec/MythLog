@@ -16,9 +16,10 @@ struct ZoomControls: View {
 
     var body: some View {
         HStack(spacing: Metrics.space2) {
+            // Same reasoning as the pan hint: see ``HistoryPositionBar``.
             Text("⌘ + / ⌘ −  or pinch · click a bar to zoom in")
                 .font(Typography.hint)
-                .foregroundStyle(Palette.textQuiet)
+                .foregroundStyle(Palette.textTertiary)
 
             button("minus", enabled: canZoomOut, action: onZoomOut)
                 .accessibilityLabel("Zoom out")

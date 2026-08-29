@@ -56,36 +56,68 @@ struct FilterBar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.space2) {
-            HStack(spacing: Metrics.space2) {
+            // # Why this is a wrapping layout and not an HStack
+            //
+            // An `HStack` given more content than width does not overflow — it
+            // compresses, and a `Text` compressed past its intrinsic width
+            // ellipsizes. That is how a row of category filters became "S… …",
+            // "P… 0", "… 3…": labels that name no category and counts that state
+            // no number, in the one band of the app whose job is to say what is
+            // being hidden.
+            //
+            // `FlowRow` measures every child at its intrinsic size and moves to
+            // a second line when the first is full, so a narrow window costs a
+            // row of height and never a letter of meaning.
+            FlowRow(spacing: Metrics.space2) {
+                // Group A — actions. What you *do*, as opposed to what you
+                // filter by.
                 presetMenu
                 savedMenu
 
-                Rectangle()
-                    .fill(Palette.divider)
-                    .frame(width: 1, height: 18)
-                    .padding(.horizontal, Metrics.space1)
+                groupDivider
 
+                // Group B — the categories.
                 ForEach(EventKind.allCases) { chip($0) }
 
-                if !lockedSources.isEmpty {
-                    Rectangle()
-                        .fill(Palette.divider)
-                        .frame(width: 1, height: 18)
-                        .padding(.horizontal, Metrics.space1)
+                groupDivider
 
-                    ForEach(lockedSources) { FilterChip.Locked(source: $0) }
-                }
-
-                Spacer(minLength: Metrics.space2)
-
+                // Group C — the threshold. Demoted to a ghost control: it is a
+                // refinement of a filter, not a filter, and at pill weight it
+                // was the heaviest thing in the band while being the least
+                // load-bearing thing in it.
                 SeverityFilterMenu(
                     counts: severityCounts,
                     minimum: filter.minimumSeverity,
                     onChange: onSetMinimumSeverity)
             }
 
+            if !lockedSources.isEmpty {
+                // Group D — what this edition cannot see. On its own line and
+                // visually quieter, because these are statements rather than
+                // controls: mixed in among the chips they read as four more
+                // filters, and a user who clicks one and gets nothing learns the
+                // wrong lesson about the ones that do work.
+                FlowRow(spacing: Metrics.space2) {
+                    Text("NOT OBSERVABLE")
+                        .font(Typography.sectionKicker)
+                        .foregroundStyle(Palette.textQuiet)
+                        .fixedSize()
+                    ForEach(lockedSources) { FilterChip.Locked(source: $0) }
+                }
+            }
+
             explanation
         }
+    }
+
+    /// The break between groups. A gap alone is ambiguous at these spacings —
+    /// it reads as a slightly wider gap — so the rule carries it.
+    private var groupDivider: some View {
+        Rectangle()
+            .fill(Palette.divider)
+            .frame(width: Metrics.hairline, height: Metrics.toolbarDividerHeight)
+            .padding(.horizontal, Metrics.toolbarGroupGap - Metrics.space2)
+            .accessibilityHidden(true)
     }
 
     private func chip(_ kind: EventKind) -> some View {
@@ -198,6 +230,7 @@ struct FilterBar: View {
                 Text(activeSavedFilter?.name ?? "Saved")
                     .font(Typography.chip)
                     .lineLimit(1)
+                    .fixedSize()
             }
             .foregroundStyle(activeSavedFilter == nil ? Palette.textSecondary : Palette.filtered)
         }
@@ -206,7 +239,14 @@ struct FilterBar: View {
         .fixedSize()
         .padding(.horizontal, Metrics.space2)
         .frame(height: Metrics.chipHeight)
-        .background(Capsule(style: .continuous).fill(Palette.surfaceRaised))
+        // Ghost until a saved filter is actually applied. Only one control in
+        // this band carries a fill, and it is the one that answers a question
+        // rather than the one that remembers an answer. When a saved filter *is*
+        // active that changes — a filter restored from last week is a thing the
+        // user must see, and it earns the emphasis by being consequential.
+        .background(
+            Capsule(style: .continuous)
+                .fill(activeSavedFilter == nil ? Color.clear : Palette.filteredWash))
         .overlay(
             Capsule(style: .continuous)
                 .strokeBorder(

@@ -44,7 +44,7 @@ struct SeverityFilterMenu: View {
                 Button {
                     onChange(severity)
                 } label: {
-                    Text("\(severity.label) and above — \(matching)")
+                    Text("\(severity.label) and above — \(matching.formatted())")
                 }
                 .disabled(matching == 0)
             }
@@ -54,19 +54,36 @@ struct SeverityFilterMenu: View {
                     .font(.system(size: 10, weight: .medium))
                 Text(label)
                     .font(Typography.chip)
+                    .lineLimit(1)
+                    .fixedSize()
             }
-            .foregroundStyle(minimum == nil ? Palette.textSecondary : Palette.filtered)
+            .foregroundStyle(minimum == nil ? Palette.textTertiary : Palette.filtered)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
         .padding(.horizontal, Metrics.space2)
         .frame(height: Metrics.chipHeight)
-        .background(Capsule(style: .continuous).fill(Palette.surfaceRaised))
+        // # Why this is a ghost control
+        //
+        // It was the heaviest pill in the filter band and it is the weakest
+        // filter in the app. There is no `error` or `critical` tier — the
+        // ceiling is `warning`, which in a normal week means `health.stop` and
+        // an unexpected volume mount and nothing else. So "warning and above"
+        // empties the timeline and the emptiness reads as calm, which is the one
+        // reading this product exists to prevent.
+        //
+        // It is kept, because when there *is* a warning it is the fastest way to
+        // it, and demoted, because it must not be the first thing a worried user
+        // reaches for. It gains weight only once it is actually narrowing
+        // something, which is when it becomes worth seeing.
+        .background(
+            Capsule(style: .continuous)
+                .fill(minimum == nil ? Color.clear : Palette.filteredWash))
         .overlay(
             Capsule(style: .continuous)
                 .strokeBorder(
-                    minimum == nil ? Palette.border : Palette.filteredEdge, lineWidth: Metrics.hairline))
+                    minimum == nil ? Palette.divider : Palette.filteredEdge, lineWidth: Metrics.hairline))
         .accessibilityLabel("Minimum severity")
         .accessibilityValue(minimum.map { "\($0.label) and above" } ?? "any severity")
     }

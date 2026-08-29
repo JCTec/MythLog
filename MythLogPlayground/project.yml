@@ -49,6 +49,16 @@ targets:
       # state the tests want. See `SharedContainer.containerOverrideKey`.
       environmentVariables:
         MYTHLOG_CONTAINER: $(TMPDIR)mythlog-test-container
+        # Where `RenderShots` writes, and the switch that turns it on. Empty
+        # unless a build setting of the same name supplies it, so an ordinary
+        # test run skips the suite entirely:
+        #
+        #   xcodebuild … test MYTHLOG_RENDER_SHOTS=/tmp/mythlog-shots
+        #
+        # A shell variable cannot reach the test process on its own — the test
+        # host is launched by xcodebuild, not by the shell — which is why this
+        # goes through a build setting rather than the environment.
+        MYTHLOG_RENDER_SHOTS: $(MYTHLOG_RENDER_SHOTS)
     settings:
       base:
         PRODUCT_NAME: MythLog

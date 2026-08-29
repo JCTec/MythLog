@@ -18,31 +18,59 @@ struct HeaderBar: View {
     /// being edited, or ⌘← stops meaning "beginning of line" here.
     @FocusState.Binding var queryFocus: Bool
 
+    /// # Two things on the left, two on the right
+    ///
+    /// This was six items of equal weight in one line — mark, edition, recorder
+    /// pill, record count, source chip, verdict, search — which is a list, not a
+    /// hierarchy, and a reader has to check all six to find the one they wanted.
+    ///
+    /// The row now answers only the two questions that must be answerable before
+    /// anything below it is worth reading: **what am I looking at** (identity,
+    /// and whether the recorder is running) and **can I trust it** (the verdict,
+    /// plus the way to search it).
+    ///
+    /// Scale and provenance — "34,396 records · since 3 Aug", and which ledger is
+    /// open — moved to the subline. They are facts about the data rather than
+    /// about its trustworthiness, they are read once per session rather than
+    /// glanced at, and at header weight they crowded out the verdict, which is
+    /// not read once per session.
     var body: some View {
-        HStack(spacing: Metrics.space4) {
-            HStack(spacing: Metrics.space3) {
-                MarkGlyph()
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("MythLog").font(Typography.appName).foregroundStyle(Palette.textPrimary)
-                    Text(edition).font(Typography.editionLabel).foregroundStyle(Palette.textTertiary)
+        VStack(alignment: .leading, spacing: Metrics.space1) {
+            HStack(spacing: Metrics.space4) {
+                HStack(spacing: Metrics.space3) {
+                    MarkGlyph()
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("MythLog").font(Typography.appName).foregroundStyle(Palette.textPrimary)
+                        Text(edition).font(Typography.editionLabel).foregroundStyle(Palette.textTertiary)
+                    }
                 }
+
+                RecorderStatusPill(isRunning: true, heartbeat: "4 s")
+
+                Spacer(minLength: Metrics.space4)
+
+                LedgerStatusBadge(state: integrity)
+
+                searchField
             }
+            .frame(height: Metrics.headerHeight)
 
-            RecorderStatusPill(isRunning: true, heartbeat: "4 s")
+            subline
+        }
+    }
 
+    /// Scale and provenance, below the title row.
+    private var subline: some View {
+        HStack(spacing: Metrics.space3) {
             Text("\(recordCount.formatted()) records · \(since)")
-                .font(Typography.chip)
-                .foregroundStyle(Palette.textSecondary)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.textTertiary)
+                .monospacedDigit()
 
             if let loaded { sourceChip(loaded) }
 
-            Spacer()
-
-            LedgerStatusBadge(state: integrity)
-
-            searchField
+            Spacer(minLength: 0)
         }
-        .frame(height: Metrics.headerHeight)
     }
 
     /// What is loaded, and the way back to the chooser.
@@ -82,7 +110,14 @@ struct HeaderBar: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11))
                 .foregroundStyle(Palette.textTertiary)
-            TextField("Search — or severity:>=warning", text: $query)
+            // The placeholder taught `severity:>=warning` as the example query.
+            // It is the one token here most likely to mislead: there is no
+            // severity above `warning` in this data, so the query most people
+            // would copy from a placeholder empties the timeline, and an empty
+            // timeline reads as a quiet week. The syntax still works and is
+            // still documented in the help; it is simply not what the field
+            // suggests you try first.
+            TextField("Search events in this window", text: $query)
                 .focused($queryFocus)
                 .textFieldStyle(.plain)
                 .font(Typography.chip)

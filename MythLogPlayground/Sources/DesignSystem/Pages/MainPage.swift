@@ -222,9 +222,18 @@ struct MainPage: View {
                 .font(Typography.sectionKicker)
                 .foregroundStyle(Palette.textTertiary)
 
-            Text("\(model.level.label)·\(model.window.spanLabel)")
+            // Both halves derive from the same window, so they cannot disagree:
+            // the level is resolved from it and the span is measured from it.
+            // The contradiction this used to show — "Density · 6 d" beside a
+            // footer reading "12:37 – 21:59" — was never in this chip. It was in
+            // the footer, which printed clock times for a range spanning six
+            // days and dropped the days. See ``TimelineWindow/label``.
+            Text("\(model.level.label) · \(model.window.spanLabel)")
                 .font(Typography.chip)
+                .monospacedDigit()
                 .foregroundStyle(Palette.textPrimary)
+                .lineLimit(1)
+                .fixedSize()
                 .padding(.horizontal, Metrics.space2)
                 .frame(height: 22)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Palette.surfaceRaised))
@@ -252,13 +261,28 @@ struct MainPage: View {
                     "\(model.hiddenInWindow) records in this window are hidden by a filter")
             }
 
-            HStack(spacing: Metrics.space1) {
-                HatchFill(spacing: 3, lineWidth: 1)
-                    .frame(width: 13, height: 10)
-                    .clipShape(RoundedRectangle(cornerRadius: 2))
-                Text("no coverage")
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.textTertiary)
+            // The legend, carrying both forms of the same mark. A short gap is
+            // drawn as a dashed tick rather than as hatching — three points of
+            // diagonal lines is a smudge — and an unexplained dashed spike
+            // beside grey density bars is exactly the ambiguity this names.
+            HStack(spacing: Metrics.space2) {
+                HStack(spacing: Metrics.space1) {
+                    CoverageGapMark(size: CGSize(width: 13, height: 10))
+                    Text("no coverage")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textTertiary)
+                        .fixedSize()
+                }
+                HStack(spacing: Metrics.space1) {
+                    Rectangle()
+                        .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [3, 2]))
+                        .foregroundStyle(Palette.textQuiet)
+                        .frame(width: 2, height: 11)
+                    Text("brief gap")
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.textTertiary)
+                        .fixedSize()
+                }
             }
 
             Spacer()

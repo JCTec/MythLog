@@ -86,12 +86,12 @@ struct InspectorPanel: View {
 
     private func header(_ event: TimelineEvent) -> some View {
         VStack(alignment: .leading, spacing: Metrics.space2) {
-            Text("\(event.kind.label.uppercased()) · RECORD #\(event.record)")
+            Text("\(event.kind.label.uppercased()) · RECORD #\(event.record.formatted())")
                 .font(Typography.sectionKicker)
                 .foregroundStyle(event.kind.hue)
 
             HStack(spacing: Metrics.space2) {
-                Image(systemName: event.kind.symbol)
+                Image(systemName: event.symbol)
                     .font(.system(size: 17))
                     .foregroundStyle(event.kind.hue)
                 Text(event.label)
@@ -108,7 +108,12 @@ struct InspectorPanel: View {
     private func fields(_ event: TimelineEvent) -> some View {
         VStack(spacing: Metrics.space2) {
             field("Time", event.at.clockSecondsText)
-            field("Kind", event.payloadKind)
+            // "Type", not "Kind". The kicker two rows above already says the
+            // *kind* — SESSION — and a row labelled the same word holding a
+            // different value reads as a contradiction rather than as a
+            // refinement. This is the specific event type inside that category,
+            // and naming it so is both shorter and true.
+            field("Type", event.payloadKind)
             field("Source", event.source)
         }
     }
@@ -127,6 +132,14 @@ struct InspectorPanel: View {
             Text(event.payloadJSON)
                 .font(Typography.payload)
                 .foregroundStyle(Palette.textSecondary)
+                // Wraps; never clips. A path truncated inside its own quotes —
+                // `"~/Projects/mythlog/Sources/Ledg…"` — is a payload that
+                // cannot be checked against the record it claims to describe,
+                // which is the only reason this block exists. Height is cheap in
+                // a panel that scrolls; a missing suffix is not.
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
                 .padding(Metrics.space3)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(

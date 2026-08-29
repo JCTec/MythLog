@@ -29,6 +29,38 @@ struct TimelineEvent: Identifiable, Hashable, Sendable {
     var severity: AlarmSeverity = .info
 
     var previousRecord: Int { record - 1 }
+
+    /// The mark for *this record*, which is not always the mark for its category.
+    ///
+    /// Six categories is the right granularity for a filter chip and the wrong
+    /// granularity for an icon beside a headline: "Screen locked" and "Screen
+    /// unlocked" are opposite facts and shared one glyph, so the icon carried no
+    /// information precisely where a reader was most likely to rely on it.
+    ///
+    /// Only the types where the direction is the whole point are listed. Anything
+    /// else falls through to its category, which is the honest default — an
+    /// invented glyph per payload kind would be a legend nobody can learn, and
+    /// Wave 5 adds kinds that do not exist yet.
+    var symbol: String {
+        // The last dotted component, which is the part the shipping recorder and
+        // the fixture agree on: `agent.agent.heartbeat` and `agent.heartbeat`
+        // differ everywhere except the end. Same reasoning as
+        // ``CoverageAnalysis/isHeartbeat(_:)``.
+        switch payloadKind.split(separator: ".").last.map(String.init) ?? "" {
+        case "lock": "lock.fill"
+        case "unlock": "lock.open.fill"
+        case "sleep": "moon.fill"
+        case "wake": "sun.max"
+        case "display": "display"
+        case "mount": "externaldrive.badge.plus"
+        case "unmount": "externaldrive.badge.minus"
+        case "launched": "arrow.up.forward.app"
+        case "terminated": "xmark.app"
+        case "stop": "stop.circle"
+        case "started": "play.circle"
+        default: kind.symbol
+        }
+    }
 }
 
 extension TimelineEvent {
