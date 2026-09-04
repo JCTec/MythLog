@@ -73,10 +73,11 @@ security,privacy,monitor,timeline,log,audit,intrusion,unlock,tamper,ledger,event
 - Promotional text can be changed anytime without submitting a new build.
 - Keyword list is carried over unchanged through the rename.
 - Description and promotional text say "source available," not "open
-  source" — the project moved off the MIT License to the MythLog Personal
-  Use License (see repo root `LICENSE`), which permits personal copying and
-  modification but not redistribution or commercial use. Do not reintroduce
-  "open source"/"MIT" language in App Store copy.
+  source" — the project is licensed under CC BY-NC 4.0 (see repo root
+  `LICENSE`), which permits use, modification, and sharing with attribution
+  but not commercial use. A noncommercial license is not an OSI-approved
+  open source license, so do not reintroduce "open source"/"MIT" language in
+  App Store copy.
 - One thing to weigh before submitting: App Store Connect already indexes the
   app name, so keywords that repeat a word in it are wasted budget. "MythLog"
   contains **log**, and `log` is still in the list. Dropping it would free 4

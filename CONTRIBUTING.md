@@ -2,7 +2,7 @@
 
 MythLog is intended to be a consent-first macOS security event recorder.
 
-MythLog's source is available under the [MythLog Personal Use License](LICENSE) — copying and modifying for personal use is welcome, but the license does not permit redistributing the Software or using it to offer a product or service to others. The license carries an explicit exception for contributions: forking or copying the repository solely to prepare and submit a pull request, patch, or issue back to this project is permitted.
+MythLog's source is available under [CC BY-NC 4.0](LICENSE) — you may use, modify, and share it, including forking it to prepare a pull request, provided you give credit and do not use it commercially. By submitting a contribution you agree that it is licensed to this project under the same terms.
 
 Security-sensitive reports should follow [SECURITY.md](SECURITY.md). Do not publish exploit details, private ledger records, hostnames, paths, tokens, or secrets in public issues or pull requests.
 

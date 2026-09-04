@@ -4,7 +4,7 @@ This checklist is for maintainers preparing MythLog for a public release.
 
 ## Repository Readiness
 
-- [x] Add a public `LICENSE` file (MythLog Personal Use License).
+- [x] Add a public `LICENSE` file (CC BY-NC 4.0).
 - [ ] Confirm `README.md` describes the product, limits, install path, data locations, and safety boundaries.
 - [ ] Confirm `SECURITY.md` has a private reporting path or a clear fallback process.
 - [ ] Confirm issue templates and pull request template do not invite private logs or secrets.

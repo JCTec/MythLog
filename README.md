@@ -64,4 +64,6 @@ Full documentation lives in [`docs/`](docs/):
 
 ## License
 
-MythLog is proprietary software. See the [LICENSE](LICENSE) file for terms; use of the compiled app is governed by the Mac App Store Terms and Conditions where applicable.
+MythLog's source is released under the [Creative Commons Attribution-NonCommercial 4.0 International License](LICENSE) (CC BY-NC 4.0). You may use, modify, and share it — including modified versions — as long as you give credit and do not use it commercially. Selling it, charging for access, or bundling it into a paid product or service is not permitted; contact the copyright holder for commercial licensing.
+
+That license covers this repository and anything you build from it yourself. Official compiled builds are distributed separately, and your use of one is governed by the terms you obtained it under (for example, the Mac App Store Terms and Conditions). The copyright holder reserves the right to license MythLog on other terms.
